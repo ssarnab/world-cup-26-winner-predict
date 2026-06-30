@@ -5,11 +5,11 @@ import {
   Results,
   Team,
   champion,
-  effectiveWinner,
   gradeOf,
-  isLocked,
+  hasResult,
   slotKey,
   teamsAt,
+  winnerAt,
 } from "@/lib/bracket";
 import { Flag } from "./Flag";
 
@@ -33,18 +33,29 @@ export function ChampionHero({
   picks: Picks;
   results: Results;
 }) {
-  const champ = champion(picks, results);
+  const champ = champion(picks);
+  const grade = gradeOf(4, 0, picks, results);
+  const ring =
+    grade === "correct"
+      ? "border-emerald-400/50"
+      : grade === "wrong"
+      ? "border-red-400/40"
+      : "border-emerald-400/20";
   return (
-    <div className="mb-5 flex items-center justify-center gap-4 rounded-2xl border border-emerald-400/20 bg-gradient-to-b from-emerald-400/10 to-transparent py-5">
+    <div
+      className={`mb-5 flex items-center justify-center gap-4 rounded-2xl border bg-gradient-to-b from-emerald-400/10 to-transparent py-5 ${ring}`}
+    >
       <span className="text-4xl">🏆</span>
       <div className="text-center">
         <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-300/80">
-          {results[slotKey(4, 0)] ? "Champion" : "Predicted Champion"}
+          Predicted Champion
         </p>
         {champ ? (
           <p className="flex items-center justify-center gap-2 text-2xl font-black sm:text-3xl">
             <Flag code={champ.code} size="lg" />
             {champ.name}
+            {grade === "correct" && <span className="text-emerald-400">✓</span>}
+            {grade === "wrong" && <span className="text-red-400">✗</span>}
           </p>
         ) : (
           <p className="text-2xl font-black text-white/40 sm:text-3xl">?</p>
@@ -63,7 +74,6 @@ export function Bracket({
   results: Results;
   onPick?: (round: number, match: number, team: string) => void;
 }) {
-  const readOnly = !onPick;
   return (
     <div className="overflow-x-auto pb-3">
       <div
@@ -84,7 +94,6 @@ export function Bracket({
                   picks={picks}
                   results={results}
                   onPick={onPick}
-                  readOnly={readOnly}
                   center={col.center}
                 />
               ))}
@@ -102,7 +111,6 @@ function MatchBox({
   picks,
   results,
   onPick,
-  readOnly,
   center,
 }: {
   round: number;
@@ -110,16 +118,15 @@ function MatchBox({
   picks: Picks;
   results: Results;
   onPick?: (round: number, match: number, team: string) => void;
-  readOnly: boolean;
   center?: boolean;
 }) {
-  const [a, b] = teamsAt(round, match, picks, results);
-  const locked = isLocked(round, match, results);
-  const effWinner = effectiveWinner(round, match, picks, results);
-  const userPick = picks[slotKey(round, match)];
-  const grade = gradeOf(round, match, picks, results); // vs real result
+  const [a, b] = teamsAt(round, match, picks);
+  const userPick = winnerAt(round, match, picks);
+  const grade = gradeOf(round, match, picks, results); // correct | wrong | null
+  const decided = hasResult(round, match, results);
+  const actualWinner = results[slotKey(round, match)];
   const bothReady = Boolean(a && b);
-  const canClick = Boolean(onPick) && !readOnly && bothReady && !locked;
+  const canClick = Boolean(onPick) && bothReady;
 
   const row = (team: Team | null) => {
     if (!team) {
@@ -129,11 +136,27 @@ function MatchBox({
         </div>
       );
     }
-    const isResultWinner = locked && results[slotKey(round, match)] === team.name;
-    const isUserPick = userPick === team.name;
-    const isEffWinner = effWinner?.name === team.name;
-    const advanced = locked ? isResultWinner : isEffWinner;
-    const dim = (locked && !isResultWinner) || (!locked && effWinner && !isEffWinner);
+    const isPick = userPick?.name === team.name;
+    const isActualWinner = decided && actualWinner === team.name;
+
+    // colour rules
+    let cls = "text-white/85";
+    let badge: React.ReactNode = null;
+    if (isPick && grade === "correct") {
+      cls = "bg-emerald-500/25 text-white";
+      badge = <span className="ml-auto font-bold text-emerald-300">✓</span>;
+    } else if (isPick && grade === "wrong") {
+      cls = "bg-red-500/25 text-white";
+      badge = <span className="ml-auto font-bold text-red-400">✗</span>;
+    } else if (isPick) {
+      cls = "bg-emerald-400/15 text-white"; // selected, no result yet
+    } else if (isActualWinner) {
+      // the real winner that the user did NOT pick — show the right answer
+      cls = "text-emerald-300/80";
+      badge = <span className="ml-auto text-[10px] text-emerald-300/80">won</span>;
+    } else if (userPick) {
+      cls = "text-white/35"; // the eliminated side of a decided pick
+    }
 
     return (
       <button
@@ -142,35 +165,23 @@ function MatchBox({
         onClick={() => canClick && onPick!(round, match, team.name)}
         title={team.name}
         className={`flex h-7 w-full items-center gap-1.5 px-2 text-left transition
-          ${advanced ? "bg-emerald-400/20 text-white" : "text-white/85"}
-          ${dim ? "text-white/35" : ""}
+          ${cls}
           ${canClick ? "cursor-pointer hover:bg-white/10" : "cursor-default"}`}
       >
         <Flag code={team.code} />
         <span className="truncate text-xs font-medium">{team.name}</span>
-        {locked && isUserPick && isResultWinner && (
-          <span className="ml-auto text-emerald-300" title="You got it right">
-            ✓
-          </span>
-        )}
-        {locked && isUserPick && !isResultWinner && (
-          <span className="ml-auto text-red-400" title="You picked this — wrong">
-            ✗
-          </span>
-        )}
+        {badge}
       </button>
     );
   };
 
   const border =
     grade === "correct"
-      ? "border-emerald-400/40"
+      ? "border-emerald-400/50"
       : grade === "wrong"
-      ? "border-red-400/40"
+      ? "border-red-400/50"
       : center
-      ? "border-emerald-400/40 bg-emerald-400/[0.04]"
-      : locked
-      ? "border-white/15"
+      ? "border-emerald-400/40"
       : "border-white/10";
 
   return (

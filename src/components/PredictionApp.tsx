@@ -5,7 +5,6 @@ import {
   Picks,
   Results,
   slotKey,
-  isLocked,
   score,
   decidedCount,
   TOTAL_MATCHES,
@@ -80,7 +79,7 @@ export default function PredictionApp() {
 
   const handlePick = useCallback(
     (round: number, match: number, team: string) => {
-      if (isLocked(round, match, results) || !identity) return;
+      if (!identity) return;
       setPicks((prev) => {
         const next = { ...prev, [slotKey(round, match)]: team };
         localStorage.setItem(
@@ -95,10 +94,7 @@ export default function PredictionApp() {
   );
 
   const myScore = useMemo(() => score(picks, results), [picks, results]);
-  const decided = useMemo(
-    () => decidedCount(picks, results),
-    [picks, results]
-  );
+  const decided = useMemo(() => decidedCount(picks), [picks]);
 
   // ---------- Auth gates ----------
   if (!isFirebaseConfigured) {
@@ -217,7 +213,7 @@ export default function PredictionApp() {
           {/* Stats strip */}
           <div className="mb-5 grid grid-cols-3 gap-3">
             <StatCard
-              big={`${myScore.pct}%`}
+              big={myScore.graded > 0 ? `${myScore.pct}%` : "—"}
               label="Accuracy"
               accent="emerald"
             />
@@ -231,12 +227,29 @@ export default function PredictionApp() {
             />
           </div>
 
+          {/* Legend */}
+          <div className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-white/50">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-emerald-500/40" />
+              Correct ✓
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-red-500/40" />
+              Wrong ✗
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-emerald-400/15" />
+              Your pick (no result yet)
+            </span>
+          </div>
+
           <ChampionHero picks={picks} results={results} />
           <Bracket picks={picks} results={results} onPick={handlePick} />
 
           <p className="mt-3 text-center text-xs text-white/35">
-            Tap a team to advance it. Finished matches are locked and show ✓/✗ on
-            your pick. Picks save automatically.
+            Tap a team to advance it all the way to your champion. As real
+            results come in, each pick turns green ✓ or red ✗ and your accuracy
+            updates. Picks save automatically.
           </p>
         </>
       ) : (
