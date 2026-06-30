@@ -176,27 +176,52 @@ export default function PredictionApp() {
 
   if (!user) {
     return (
-      <Centered>
+      <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-5 py-12 text-center">
+        <div className="mb-4 text-6xl">🏆</div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400/80">
           FIFA World Cup 2026™
         </p>
-        <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black tracking-tight text-transparent">
-          Build Your Bracket
+        <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black leading-tight tracking-tight text-transparent sm:text-5xl">
+          Predict the Knockout Bracket
         </h1>
-        <p className="mt-3 text-sm text-white/50">
-          Sign in to pick the winners and crown your champion.
+        <p className="mt-4 max-w-md text-base text-white/60">
+          Pick the winner of every match — from the Round of 32 all the way to
+          the Final — build your own bracket and crown your World Champion. Then
+          see who the fans are backing to lift the trophy. 🌍⚽
         </p>
+
+        {/* How it works */}
+        <div className="mt-7 grid w-full max-w-md grid-cols-3 gap-3">
+          {[
+            { icon: "🗳️", title: "Pick winners", sub: "Tap a team to advance it" },
+            { icon: "🧩", title: "Build a bracket", sub: "R32 → Final" },
+            { icon: "📊", title: "Live fan vote", sub: "See the favourite" },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+            >
+              <div className="text-xl">{f.icon}</div>
+              <div className="mt-1 text-xs font-semibold text-white/90">
+                {f.title}
+              </div>
+              <div className="text-[10px] text-white/45">{f.sub}</div>
+            </div>
+          ))}
+        </div>
+
         <button
           onClick={login}
-          className="mt-6 flex items-center gap-3 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+          className="mt-8 flex items-center gap-3 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-white/90"
         >
           <GoogleIcon />
-          Sign in with Google
+          Sign in with Google to start
         </button>
-        {authError && (
-          <p className="mt-4 text-xs text-red-300/90">{authError}</p>
-        )}
-      </Centered>
+        <p className="mt-3 text-xs text-white/35">
+          Free · sign in just saves your bracket. Not affiliated with FIFA.
+        </p>
+        {authError && <p className="mt-4 text-xs text-red-300/90">{authError}</p>}
+      </main>
     );
   }
 
