@@ -1,82 +1,75 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { MATCHES } from "@/lib/matches";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  supabase,
-  isSupabaseConfigured,
-  PredictionRow,
-} from "@/lib/supabaseClient";
-import MatchCard from "./MatchCard";
-
-type CountMap = Record<string, Record<string, number>>; // matchId -> team -> count
+  Picks,
+  Team,
+  champion,
+  slotKey,
+  teamsAt,
+  winnerAt,
+  TOTAL_MATCHES,
+} from "@/lib/bracket";
+import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 const NAME_KEY = "wc26_voter_name";
-const PICKS_KEY = "wc26_my_picks";
+const PICKS_KEY = "wc26_bracket_picks";
+
+// Column layout: left half -> center Final -> right half (mirrors the bracket)
+type Col = { label: string; round: number; matches: number[]; center?: boolean };
+const COLUMNS: Col[] = [
+  { label: "R32", round: 0, matches: [0, 1, 2, 3, 4, 5, 6, 7] },
+  { label: "R16", round: 1, matches: [0, 1, 2, 3] },
+  { label: "QF", round: 2, matches: [0, 1] },
+  { label: "SF", round: 3, matches: [0] },
+  { label: "Final", round: 4, matches: [0], center: true },
+  { label: "SF", round: 3, matches: [1] },
+  { label: "QF", round: 2, matches: [2, 3] },
+  { label: "R16", round: 1, matches: [4, 5, 6, 7] },
+  { label: "R32", round: 0, matches: [8, 9, 10, 11, 12, 13, 14, 15] },
+];
 
 export default function PredictionApp() {
   const [name, setName] = useState("");
   const [nameInput, setNameInput] = useState("");
-  const [counts, setCounts] = useState<CountMap>({});
-  const [myPicks, setMyPicks] = useState<Record<string, string>>({});
-  const [busyMatch, setBusyMatch] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [picks, setPicks] = useState<Picks>({});
+  const [champCounts, setChampCounts] = useState<Record<string, number>>({});
+  const lastSaved = useRef<string | null>(null);
 
-  const upcoming = useMemo(
-    () => MATCHES.filter((m) => m.status === "upcoming"),
-    []
-  );
-  const completed = useMemo(
-    () => MATCHES.filter((m) => m.status === "completed"),
-    []
-  );
-
-  // Restore name + picks from localStorage
+  // Restore from localStorage
   useEffect(() => {
     setName(localStorage.getItem(NAME_KEY) ?? "");
     try {
-      setMyPicks(JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}"));
+      setPicks(JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}"));
     } catch {
-      setMyPicks({});
+      setPicks({});
     }
   }, []);
 
-  const refetchCounts = useCallback(async () => {
-    if (!isSupabaseConfigured) return;
-    const { data, error } = await supabase
-      .from("predictions")
-      .select("match_id, selected_team");
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    const next: CountMap = {};
-    (data as Pick<PredictionRow, "match_id" | "selected_team">[]).forEach(
-      (row) => {
-        next[row.match_id] = next[row.match_id] ?? {};
-        next[row.match_id][row.selected_team] =
-          (next[row.match_id][row.selected_team] ?? 0) + 1;
-      }
-    );
-    setCounts(next);
-  }, []);
+  const champ = useMemo(() => champion(picks), [picks]);
+  const decided = useMemo(
+    () =>
+      COLUMNS.reduce(
+        (sum, c) =>
+          sum + c.matches.filter((m) => winnerAt(c.round, m, picks)).length,
+        0
+      ),
+    [picks]
+  );
 
-  // Initial load + realtime subscription for live percentages
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    refetchCounts();
-    const channel = supabase
-      .channel("predictions-live")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "predictions" },
-        () => refetchCounts()
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refetchCounts]);
+  const pick = (round: number, match: number, teamName: string) => {
+    setPicks((prev) => {
+      const next = { ...prev, [slotKey(round, match)]: teamName };
+      localStorage.setItem(PICKS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const reset = () => {
+    setPicks({});
+    localStorage.removeItem(PICKS_KEY);
+    lastSaved.current = null;
+  };
 
   const submitName = () => {
     const clean = nameInput.trim();
@@ -85,144 +78,274 @@ export default function PredictionApp() {
     localStorage.setItem(NAME_KEY, clean);
   };
 
-  const handleVote = async (matchId: string, team: string) => {
-    if (!name || myPicks[matchId] || busyMatch) return;
-    if (!isSupabaseConfigured) {
-      setError("Supabase is not configured yet — add your keys in .env.local");
-      return;
-    }
-    setBusyMatch(matchId);
-    setError(null);
-
-    const { error } = await supabase
+  // ---- Supabase: live "fan favourite champion" tally ----
+  const refetchChampions = useCallback(async () => {
+    if (!isSupabaseConfigured) return;
+    const { data } = await supabase
       .from("predictions")
-      .insert({ match_id: matchId, voter_name: name, selected_team: team });
+      .select("selected_team")
+      .eq("match_id", "champion");
+    if (!data) return;
+    const counts: Record<string, number> = {};
+    data.forEach((r) => {
+      counts[r.selected_team] = (counts[r.selected_team] ?? 0) + 1;
+    });
+    setChampCounts(counts);
+  }, []);
 
-    if (error) {
-      setError(error.message);
-      setBusyMatch(null);
-      return;
-    }
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    refetchChampions();
+    const ch = supabase
+      .channel("champions-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "predictions" },
+        () => refetchChampions()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [refetchChampions]);
 
-    const nextPicks = { ...myPicks, [matchId]: team };
-    setMyPicks(nextPicks);
-    localStorage.setItem(PICKS_KEY, JSON.stringify(nextPicks));
-    await refetchCounts();
-    setBusyMatch(null);
-  };
+  // Save the user's champion pick whenever it changes
+  useEffect(() => {
+    if (!isSupabaseConfigured || !name || !champ) return;
+    if (lastSaved.current === champ.name) return;
+    (async () => {
+      await supabase
+        .from("predictions")
+        .delete()
+        .eq("voter_name", name)
+        .eq("match_id", "champion");
+      await supabase
+        .from("predictions")
+        .insert({ match_id: "champion", voter_name: name, selected_team: champ.name });
+      lastSaved.current = champ.name;
+      refetchChampions();
+    })();
+  }, [champ, name, refetchChampions]);
 
-  const votedCount = Object.keys(myPicks).length;
+  const totalChampVotes = Object.values(champCounts).reduce((a, b) => a + b, 0);
+  const topChampions = Object.entries(champCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
-  return (
-    <main className="mx-auto w-full max-w-2xl px-4 pb-24 pt-10 sm:pt-14">
-      {/* Header */}
-      <header className="mb-8 text-center">
+  // ---------- Name gate ----------
+  if (!name) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 text-center">
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400/80">
           FIFA World Cup 2026™
         </p>
-        <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black tracking-tight text-transparent sm:text-5xl">
-          Predict the Winners
+        <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black tracking-tight text-transparent">
+          Build Your Bracket
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm text-white/50">
-          Pick who advances in each knockout tie and watch the live fan vote
-          update in real time.
+        <p className="mt-3 text-sm text-white/50">
+          Pick a winner in every tie and watch your champion rise to the top.
         </p>
+        <div className="mt-6 flex w-full gap-2">
+          <input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitName()}
+            placeholder="Your name (e.g. Antu)"
+            maxLength={24}
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+          />
+          <button
+            onClick={submitName}
+            className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-400"
+          >
+            Start
+          </button>
+        </div>
+        {!isSupabaseConfigured && (
+          <p className="mt-4 text-xs text-amber-300/80">
+            ⚠️ Supabase keys missing — bracket works, but champion tally is off.
+          </p>
+        )}
+      </main>
+    );
+  }
+
+  // ---------- Bracket ----------
+  return (
+    <main className="mx-auto w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-5">
+      {/* Header */}
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-400/80">
+            FIFA World Cup 2026™
+          </p>
+          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+            {name}&apos;s Bracket
+          </h1>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-white/50">
+            {decided}/{TOTAL_MATCHES} picked
+          </span>
+          <button
+            onClick={reset}
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+          >
+            Reset
+          </button>
+        </div>
       </header>
 
-      {!isSupabaseConfigured && (
-        <div className="mb-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-          ⚠️ Supabase keys missing. Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to <code>.env.local</code>{" "}
-          to enable voting.
-        </div>
-      )}
+      {/* Champion hero */}
+      <ChampionHero champ={champ} />
 
-      {error && (
-        <div className="mb-6 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-          {error}
+      {/* Bracket (horizontal scroll on small screens) */}
+      <div className="overflow-x-auto pb-3">
+        <div
+          className="flex min-w-[1180px] items-stretch gap-2 sm:gap-3"
+          style={{ height: 560 }}
+        >
+          {COLUMNS.map((col, ci) => (
+            <div key={ci} className="flex h-full flex-col">
+              <div className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                {col.label}
+              </div>
+              <div className="flex flex-1 flex-col justify-around">
+                {col.matches.map((m) => (
+                  <MatchBox
+                    key={`${col.round}-${m}`}
+                    round={col.round}
+                    match={m}
+                    picks={picks}
+                    onPick={pick}
+                    center={col.center}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Name gate */}
-      {!name ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
-          <h2 className="text-lg font-semibold">Enter your name to start</h2>
-          <p className="mt-1 text-sm text-white/45">
-            We&apos;ll show your picks next to the live results.
-          </p>
-          <div className="mx-auto mt-4 flex max-w-sm gap-2">
-            <input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitName()}
-              placeholder="e.g. Antu"
-              maxLength={24}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
-            />
-            <button
-              onClick={submitName}
-              className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-400"
-            >
-              Start
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mb-6 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm">
-          <span className="text-white/60">
-            Playing as <span className="font-semibold text-white">{name}</span>
-          </span>
-          <span className="text-white/45">
-            {votedCount}/{upcoming.length} predicted
-          </span>
-        </div>
-      )}
-
-      {/* Upcoming matches (votable) */}
-      {name && (
-        <section className="mt-2">
-          <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-white/40">
-            Pick the winners
+      {/* Live champion tally */}
+      {isSupabaseConfigured && (
+        <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/50">
+            🏆 Fan favourite to win it all
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {upcoming.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                counts={counts[m.id] ?? {}}
-                myPick={myPicks[m.id]}
-                onVote={handleVote}
-                busy={busyMatch === m.id}
-              />
-            ))}
-          </div>
+          {totalChampVotes === 0 ? (
+            <p className="text-sm text-white/40">
+              No champions picked yet — finish your bracket to be the first!
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {topChampions.map(([team, votes]) => {
+                const p = Math.round((votes / totalChampVotes) * 100);
+                return (
+                  <div key={team} className="flex items-center gap-3 text-sm">
+                    <span className="w-28 shrink-0 truncate font-medium">{team}</span>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
+                        style={{ width: `${p}%` }}
+                      />
+                    </div>
+                    <span className="w-10 shrink-0 text-right tabular-nums text-white/70">
+                      {p}%
+                    </span>
+                  </div>
+                );
+              })}
+              <p className="pt-1 text-xs text-white/35">
+                {totalChampVotes} {totalChampVotes === 1 ? "bracket" : "brackets"} submitted
+              </p>
+            </div>
+          )}
         </section>
       )}
 
-      {/* Completed results */}
-      {name && (
-        <section className="mt-10">
-          <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-white/40">
-            Already decided
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {completed.map((m) => (
-              <MatchCard
-                key={m.id}
-                match={m}
-                counts={counts[m.id] ?? {}}
-                myPick={myPicks[m.id]}
-                onVote={handleVote}
-                busy={false}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <footer className="mt-14 text-center text-xs text-white/30">
+      <footer className="mt-10 text-center text-xs text-white/30">
         Fan predictions · not affiliated with FIFA · built for fun
       </footer>
     </main>
+  );
+}
+
+// ---------- Champion hero ----------
+function ChampionHero({ champ }: { champ: Team | null }) {
+  return (
+    <div className="mb-5 flex items-center justify-center gap-4 rounded-2xl border border-emerald-400/20 bg-gradient-to-b from-emerald-400/10 to-transparent py-5">
+      <span className="text-4xl">🏆</span>
+      <div className="text-center">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-300/80">
+          World Champion
+        </p>
+        {champ ? (
+          <p className="text-2xl font-black sm:text-3xl">
+            <span className="mr-2">{champ.flag}</span>
+            {champ.name}
+          </p>
+        ) : (
+          <p className="text-2xl font-black text-white/40 sm:text-3xl">?</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Match box ----------
+function MatchBox({
+  round,
+  match,
+  picks,
+  onPick,
+  center,
+}: {
+  round: number;
+  match: number;
+  picks: Picks;
+  onPick: (round: number, match: number, team: string) => void;
+  center?: boolean;
+}) {
+  const [a, b] = teamsAt(round, match, picks);
+  const winner = winnerAt(round, match, picks);
+  const bothReady = Boolean(a && b);
+
+  const row = (team: Team | null) => {
+    if (!team) {
+      return (
+        <div className="flex h-7 items-center gap-1.5 px-2 text-white/25">
+          <span className="text-base leading-none">·</span>
+          <span className="text-xs">—</span>
+        </div>
+      );
+    }
+    const isWinner = winner?.name === team.name;
+    const decided = Boolean(winner);
+    return (
+      <button
+        type="button"
+        disabled={!bothReady}
+        onClick={() => onPick(round, match, team.name)}
+        title={team.name}
+        className={`flex h-7 w-full items-center gap-1.5 px-2 text-left transition
+          ${isWinner ? "bg-emerald-400/20 text-white" : decided ? "text-white/40" : "text-white/90 hover:bg-white/10"}
+          ${bothReady ? "cursor-pointer" : "cursor-default"}`}
+      >
+        <span className="text-base leading-none">{team.flag}</span>
+        <span className="truncate text-xs font-medium">{team.name}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div
+      className={`w-[128px] overflow-hidden rounded-lg border sm:w-[140px]
+        ${center ? "border-emerald-400/40 bg-emerald-400/[0.04]" : "border-white/10 bg-white/[0.03]"}`}
+    >
+      {row(a)}
+      <div className="h-px bg-white/10" />
+      {row(b)}
+    </div>
   );
 }
