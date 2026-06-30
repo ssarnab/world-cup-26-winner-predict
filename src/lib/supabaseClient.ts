@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+// Supabase's newer dashboards issue a "publishable" key (sb_publishable_...).
+// Older projects use the legacy "anon" JWT key. Support either one.
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "";
 
 // `isSupabaseConfigured` lets the UI show a friendly hint when env vars
 // are missing instead of throwing at runtime.
