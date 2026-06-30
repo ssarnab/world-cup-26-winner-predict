@@ -30,8 +30,9 @@ function Flag({ code, size = "md" }: { code: string; size?: "md" | "lg" }) {
   );
 }
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/useAuth";
+import { isFirebaseConfigured } from "@/lib/firebase";
 
-const NAME_KEY = "wc26_voter_name";
 const PICKS_KEY = "wc26_bracket_picks";
 
 // Column layout: left half -> center Final -> right half (mirrors the bracket)
@@ -49,22 +50,26 @@ const COLUMNS: Col[] = [
 ];
 
 export default function PredictionApp() {
-  const [name, setName] = useState("");
-  const [nameInput, setNameInput] = useState("");
+  const { user, loading, error: authError, login, logout } = useAuth();
+  const name = user?.displayName ?? user?.email ?? "Player";
+
   const [picks, setPicks] = useState<Picks>(LOCKED_PICKS);
   const [champCounts, setChampCounts] = useState<Record<string, number>>({});
   const lastSaved = useRef<string | null>(null);
 
-  // Restore from localStorage (locked results always take precedence)
+  // Restore this signed-in user's bracket (locked results always win)
   useEffect(() => {
-    setName(localStorage.getItem(NAME_KEY) ?? "");
+    if (!user) return;
     try {
-      const saved = JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}");
+      const saved = JSON.parse(
+        localStorage.getItem(`${PICKS_KEY}_${user.uid}`) ?? "{}"
+      );
       setPicks({ ...saved, ...LOCKED_PICKS });
     } catch {
       setPicks(LOCKED_PICKS);
     }
-  }, []);
+    lastSaved.current = null;
+  }, [user]);
 
   const champ = useMemo(() => champion(picks), [picks]);
   const decided = useMemo(
@@ -77,26 +82,21 @@ export default function PredictionApp() {
     [picks]
   );
 
+  const storageKey = user ? `${PICKS_KEY}_${user.uid}` : PICKS_KEY;
+
   const pick = (round: number, match: number, teamName: string) => {
     if (isLocked(round, match)) return; // completed results can't change
     setPicks((prev) => {
       const next = { ...prev, [slotKey(round, match)]: teamName };
-      localStorage.setItem(PICKS_KEY, JSON.stringify(next));
+      localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
     });
   };
 
   const reset = () => {
     setPicks(LOCKED_PICKS);
-    localStorage.setItem(PICKS_KEY, JSON.stringify(LOCKED_PICKS));
+    localStorage.setItem(storageKey, JSON.stringify(LOCKED_PICKS));
     lastSaved.current = null;
-  };
-
-  const submitName = () => {
-    const clean = nameInput.trim();
-    if (clean.length < 2) return;
-    setName(clean);
-    localStorage.setItem(NAME_KEY, clean);
   };
 
   // ---- Supabase: live "fan favourite champion" tally ----
@@ -153,10 +153,30 @@ export default function PredictionApp() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
-  // ---------- Name gate ----------
-  if (!name) {
+  // ---------- Auth gates (login is mandatory) ----------
+  if (!isFirebaseConfigured) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 text-center">
+      <Centered>
+        <h1 className="text-2xl font-black">Almost there</h1>
+        <p className="mt-3 text-sm text-amber-300/90">
+          ⚠️ Firebase keys missing. Add the <code>NEXT_PUBLIC_FIREBASE_*</code>{" "}
+          values to <code>.env.local</code> to enable Google login.
+        </p>
+      </Centered>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Centered>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
+      </Centered>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Centered>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400/80">
           FIFA World Cup 2026™
         </p>
@@ -164,30 +184,19 @@ export default function PredictionApp() {
           Build Your Bracket
         </h1>
         <p className="mt-3 text-sm text-white/50">
-          Pick a winner in every tie and watch your champion rise to the top.
+          Sign in to pick the winners and crown your champion.
         </p>
-        <div className="mt-6 flex w-full gap-2">
-          <input
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submitName()}
-            placeholder="Your name (e.g. Antu)"
-            maxLength={24}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
-          />
-          <button
-            onClick={submitName}
-            className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-emerald-400"
-          >
-            Start
-          </button>
-        </div>
-        {!isSupabaseConfigured && (
-          <p className="mt-4 text-xs text-amber-300/80">
-            ⚠️ Supabase keys missing — bracket works, but champion tally is off.
-          </p>
+        <button
+          onClick={login}
+          className="mt-6 flex items-center gap-3 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+        >
+          <GoogleIcon />
+          Sign in with Google
+        </button>
+        {authError && (
+          <p className="mt-4 text-xs text-red-300/90">{authError}</p>
         )}
-      </main>
+      </Centered>
     );
   }
 
@@ -204,8 +213,8 @@ export default function PredictionApp() {
             {name}&apos;s Bracket
           </h1>
         </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="text-white/50">
+        <div className="flex items-center gap-2 text-sm sm:gap-3">
+          <span className="hidden text-white/50 sm:inline">
             {decided}/{TOTAL_MATCHES} picked
           </span>
           <button
@@ -213,6 +222,22 @@ export default function PredictionApp() {
             className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
           >
             Reset
+          </button>
+          {user?.photoURL && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.photoURL}
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-full ring-1 ring-white/20"
+            />
+          )}
+          <button
+            onClick={logout}
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+          >
+            Sign out
           </button>
         </div>
       </header>
@@ -372,5 +397,37 @@ function MatchBox({
       <div className="h-px bg-white/10" />
       {row(b)}
     </div>
+  );
+}
+
+// ---------- Small helpers ----------
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 text-center">
+      {children}
+    </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
   );
 }

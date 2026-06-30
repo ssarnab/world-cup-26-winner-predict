@@ -18,20 +18,38 @@ Built with **Next.js + TypeScript + Tailwind CSS** and **Supabase**
    - **Project URL**
    - **anon public** key
 
-## 2. Configure environment variables
+## 2. Set up Firebase (Google login)
+
+Login is **mandatory** — the whole site is gated behind Google sign-in.
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+2. **Build → Authentication → Get started → Sign-in method → Google → Enable.**
+3. **Project Overview → Add app → Web (`</>`)**, register it, and copy the
+   `firebaseConfig` values.
+4. **Authentication → Settings → Authorized domains**: make sure `localhost` is
+   listed, and later add your Vercel domain (e.g. `your-app.vercel.app`).
+
+## 3. Configure environment variables
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Then edit `.env.local`:
+Then edit `.env.local` with your Supabase **and** Firebase values:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+
+NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
+NEXT_PUBLIC_FIREBASE_APP_ID=xxx
 ```
 
-## 3. Run locally
+## 4. Run locally
 
 ```bash
 npm install
@@ -40,27 +58,26 @@ npm run dev
 
 Open http://localhost:3000.
 
-## 4. Deploy to Vercel
+## 5. Deploy to Vercel
 
 1. Push this repo to GitHub.
 2. Import it on [vercel.com](https://vercel.com).
-3. Add the two `NEXT_PUBLIC_SUPABASE_*` environment variables in the Vercel
-   project settings.
+3. Add **all** the `NEXT_PUBLIC_SUPABASE_*` and `NEXT_PUBLIC_FIREBASE_*`
+   environment variables in the Vercel project settings.
 4. Deploy. 🎉
+5. Back in **Firebase → Authentication → Settings → Authorized domains**, add
+   your live Vercel domain so Google login works in production.
 
 ---
 
-## Editing the matches
+## How it works
 
-All fixtures live in [`src/lib/matches.ts`](./src/lib/matches.ts). As rounds
-progress, add new matches (Round of 16, Quarterfinals, etc.) or flip a match's
-`status` to `"completed"` with a `winner`. Match data is sourced from the
-[ESPN World Cup 2026 bracket](https://www.espn.com/soccer/bracket).
-
-## Notes
-
-- Identity is a simple name field (no login). A browser `localStorage` flag
-  prevents a person from re-voting the same match in the same browser — fine for
-  a casual fun site, not bulletproof.
-- Live percentages use Supabase Realtime; every vote refreshes the bars for all
-  open clients.
+- **Bracket** — teams and structure live in [`src/lib/bracket.ts`](./src/lib/bracket.ts).
+  Click a team and it advances through R32 → R16 → QF → SF → Final. Changing an
+  earlier pick auto-clears the picks that depended on it.
+- **Completed results** — `RESULTS` in `bracket.ts` locks finished matches so
+  they show the real winner and can't be changed. Update it as rounds finish
+  (data: [ESPN bracket](https://www.espn.com/soccer/bracket)).
+- **Login** — Google sign-in via Firebase is required for the whole site.
+- **Champion tally** — each user's champion pick is saved to Supabase and the
+  "fan favourite" bars update live via Supabase Realtime.
