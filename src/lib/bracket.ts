@@ -1,7 +1,7 @@
 export type Team = {
   name: string;
   abbr: string;
-  code: string; // ISO 3166-1 alpha-2 (flagcdn), e.g. "br". England uses "gb-eng".
+  code: string; // ISO 3166-1 alpha-2 (flagcdn). England uses "gb-eng".
 };
 
 // 32 teams in bracket order (ESPN World Cup 2026 bracket).
@@ -44,15 +44,6 @@ export const SEEDS: Team[] = [
   { name: "Ghana", abbr: "GHA", code: "gh" },
 ];
 
-// Completed Round-of-32 results (ESPN). Key = R32 match index, value = winner.
-// These are locked: users see the real result and cannot change them.
-export const RESULTS: Record<number, string> = {
-  0: "Paraguay", // Germany 1 (3) vs Paraguay 1 (4) — pens
-  2: "Canada", // South Africa 0 vs Canada 1
-  3: "Morocco", // Netherlands 1 (2) vs Morocco 1 (3) — pens
-  8: "Brazil", // Brazil 2 vs Japan 1
-};
-
 export type RoundMeta = { key: string; name: string; short: string; matches: number };
 
 // roundIndex: 0=R32, 1=R16, 2=QF, 3=SF, 4=Final
@@ -65,58 +56,102 @@ export const ROUNDS: RoundMeta[] = [
 ];
 
 export const FINAL_ROUND = ROUNDS.length - 1; // 4
+export const TOTAL_MATCHES = ROUNDS.reduce((s, r) => s + r.matches, 0); // 31
 
-// picks key helper
 export const slotKey = (round: number, match: number) => `${round}:${match}`;
 
-export type Picks = Record<string, string>; // "round:match" -> winning team name
+export type Picks = Record<string, string>; // "round:match" -> team the user picked
+export type Results = Record<string, string>; // "round:match" -> actual winner
 
 const byName = new Map(SEEDS.map((t) => [t.name, t]));
-
-/** A completed R32 match cannot be re-picked. */
-export function isLocked(round: number, match: number): boolean {
-  return round === 0 && match in RESULTS;
-}
-
-/** Locked results as a picks object, used to seed initial state. */
-export const LOCKED_PICKS: Picks = Object.fromEntries(
-  Object.entries(RESULTS).map(([m, winner]) => [slotKey(0, Number(m)), winner])
-);
-
-/** The two teams contesting a given match, derived from earlier picks. */
-export function teamsAt(
-  round: number,
-  match: number,
-  picks: Picks
-): [Team | null, Team | null] {
-  if (round === 0) {
-    return [SEEDS[match * 2] ?? null, SEEDS[match * 2 + 1] ?? null];
-  }
-  return [
-    winnerAt(round - 1, match * 2, picks),
-    winnerAt(round - 1, match * 2 + 1, picks),
-  ];
-}
-
-/** The winner of a match, but only if the stored pick is still one of the
- *  two valid teams. This auto-invalidates stale downstream picks when an
- *  upstream selection changes. */
-export function winnerAt(round: number, match: number, picks: Picks): Team | null {
-  const [a, b] = teamsAt(round, match, picks);
-  const picked = picks[slotKey(round, match)];
-  if (!picked) return null;
-  if (a && picked === a.name) return a;
-  if (b && picked === b.name) return b;
-  return null;
-}
-
-export function champion(picks: Picks): Team | null {
-  return winnerAt(FINAL_ROUND, 0, picks);
-}
-
 export function teamByName(name: string): Team | undefined {
   return byName.get(name);
 }
 
-/** How many matches in total across all rounds. */
-export const TOTAL_MATCHES = ROUNDS.reduce((s, r) => s + r.matches, 0); // 31
+function match(a: Team | null, b: Team | null, name?: string): Team | null {
+  if (!name) return null;
+  if (a && a.name === name) return a;
+  if (b && b.name === name) return b;
+  return null;
+}
+
+/** The two teams contesting a match, derived from earlier effective winners. */
+export function teamsAt(
+  round: number,
+  m: number,
+  picks: Picks,
+  results: Results
+): [Team | null, Team | null] {
+  if (round === 0) {
+    return [SEEDS[m * 2] ?? null, SEEDS[m * 2 + 1] ?? null];
+  }
+  return [
+    effectiveWinner(round - 1, m * 2, picks, results),
+    effectiveWinner(round - 1, m * 2 + 1, picks, results),
+  ];
+}
+
+/** The team that advances: the real result if the match is decided,
+ *  otherwise the user's pick (validated against the current matchup). */
+export function effectiveWinner(
+  round: number,
+  m: number,
+  picks: Picks,
+  results: Results
+): Team | null {
+  const [a, b] = teamsAt(round, m, picks, results);
+  const key = slotKey(round, m);
+  return match(a, b, results[key]) ?? match(a, b, picks[key]);
+}
+
+export function isLocked(round: number, m: number, results: Results): boolean {
+  return Boolean(results[slotKey(round, m)]);
+}
+
+export function champion(picks: Picks, results: Results): Team | null {
+  return effectiveWinner(FINAL_ROUND, 0, picks, results);
+}
+
+// ---------- Grading ----------
+export type Grade = "correct" | "wrong" | null;
+
+/** Compare a user's stored pick at a slot to the real result. */
+export function gradeOf(
+  round: number,
+  m: number,
+  picks: Picks,
+  results: Results
+): Grade {
+  const key = slotKey(round, m);
+  const winner = results[key];
+  const pick = picks[key];
+  if (!winner || !pick) return null; // not decided, or user never picked it
+  return pick === winner ? "correct" : "wrong";
+}
+
+/** Totals across the whole bracket for one user. */
+export function score(picks: Picks, results: Results) {
+  let correct = 0;
+  let graded = 0;
+  ROUNDS.forEach((r, round) => {
+    for (let m = 0; m < r.matches; m++) {
+      const g = gradeOf(round, m, picks, results);
+      if (g === null) continue;
+      graded++;
+      if (g === "correct") correct++;
+    }
+  });
+  const pct = graded > 0 ? Math.round((correct / graded) * 100) : 0;
+  return { correct, graded, wrong: graded - correct, pct };
+}
+
+/** How many slots the user has filled in (locked results count too). */
+export function decidedCount(picks: Picks, results: Results): number {
+  let n = 0;
+  ROUNDS.forEach((r, round) => {
+    for (let m = 0; m < r.matches; m++) {
+      if (effectiveWinner(round, m, picks, results)) n++;
+    }
+  });
+  return n;
+}
