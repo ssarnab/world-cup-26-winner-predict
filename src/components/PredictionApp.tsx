@@ -8,8 +8,27 @@ import {
   slotKey,
   teamsAt,
   winnerAt,
+  isLocked,
+  LOCKED_PICKS,
   TOTAL_MATCHES,
 } from "@/lib/bracket";
+
+// flagcdn flag image (renders everywhere, unlike emoji flags on Windows)
+function Flag({ code, size = "md" }: { code: string; size?: "md" | "lg" }) {
+  const cls = size === "lg" ? "h-7 w-10" : "h-3.5 w-5";
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      srcSet={`https://flagcdn.com/w80/${code}.png 2x`}
+      width={40}
+      height={30}
+      alt=""
+      loading="lazy"
+      className={`${cls} shrink-0 rounded-[2px] object-cover ring-1 ring-black/30`}
+    />
+  );
+}
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 const NAME_KEY = "wc26_voter_name";
@@ -32,17 +51,18 @@ const COLUMNS: Col[] = [
 export default function PredictionApp() {
   const [name, setName] = useState("");
   const [nameInput, setNameInput] = useState("");
-  const [picks, setPicks] = useState<Picks>({});
+  const [picks, setPicks] = useState<Picks>(LOCKED_PICKS);
   const [champCounts, setChampCounts] = useState<Record<string, number>>({});
   const lastSaved = useRef<string | null>(null);
 
-  // Restore from localStorage
+  // Restore from localStorage (locked results always take precedence)
   useEffect(() => {
     setName(localStorage.getItem(NAME_KEY) ?? "");
     try {
-      setPicks(JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}"));
+      const saved = JSON.parse(localStorage.getItem(PICKS_KEY) ?? "{}");
+      setPicks({ ...saved, ...LOCKED_PICKS });
     } catch {
-      setPicks({});
+      setPicks(LOCKED_PICKS);
     }
   }, []);
 
@@ -58,6 +78,7 @@ export default function PredictionApp() {
   );
 
   const pick = (round: number, match: number, teamName: string) => {
+    if (isLocked(round, match)) return; // completed results can't change
     setPicks((prev) => {
       const next = { ...prev, [slotKey(round, match)]: teamName };
       localStorage.setItem(PICKS_KEY, JSON.stringify(next));
@@ -66,8 +87,8 @@ export default function PredictionApp() {
   };
 
   const reset = () => {
-    setPicks({});
-    localStorage.removeItem(PICKS_KEY);
+    setPicks(LOCKED_PICKS);
+    localStorage.setItem(PICKS_KEY, JSON.stringify(LOCKED_PICKS));
     lastSaved.current = null;
   };
 
@@ -281,8 +302,8 @@ function ChampionHero({ champ }: { champ: Team | null }) {
           World Champion
         </p>
         {champ ? (
-          <p className="text-2xl font-black sm:text-3xl">
-            <span className="mr-2">{champ.flag}</span>
+          <p className="flex items-center justify-center gap-2 text-2xl font-black sm:text-3xl">
+            <Flag code={champ.code} size="lg" />
             {champ.name}
           </p>
         ) : (
@@ -310,6 +331,7 @@ function MatchBox({
   const [a, b] = teamsAt(round, match, picks);
   const winner = winnerAt(round, match, picks);
   const bothReady = Boolean(a && b);
+  const locked = isLocked(round, match);
 
   const row = (team: Team | null) => {
     if (!team) {
@@ -325,15 +347,18 @@ function MatchBox({
     return (
       <button
         type="button"
-        disabled={!bothReady}
+        disabled={!bothReady || locked}
         onClick={() => onPick(round, match, team.name)}
         title={team.name}
         className={`flex h-7 w-full items-center gap-1.5 px-2 text-left transition
           ${isWinner ? "bg-emerald-400/20 text-white" : decided ? "text-white/40" : "text-white/90 hover:bg-white/10"}
-          ${bothReady ? "cursor-pointer" : "cursor-default"}`}
+          ${bothReady && !locked ? "cursor-pointer" : "cursor-default"}`}
       >
-        <span className="text-base leading-none">{team.flag}</span>
+        <Flag code={team.code} />
         <span className="truncate text-xs font-medium">{team.name}</span>
+        {isWinner && locked && (
+          <span className="ml-auto text-[9px] font-bold text-emerald-300">FT</span>
+        )}
       </button>
     );
   };
@@ -341,7 +366,7 @@ function MatchBox({
   return (
     <div
       className={`w-[128px] overflow-hidden rounded-lg border sm:w-[140px]
-        ${center ? "border-emerald-400/40 bg-emerald-400/[0.04]" : "border-white/10 bg-white/[0.03]"}`}
+        ${center ? "border-emerald-400/40 bg-emerald-400/[0.04]" : locked ? "border-emerald-400/25 bg-emerald-400/[0.03]" : "border-white/10 bg-white/[0.03]"}`}
     >
       {row(a)}
       <div className="h-px bg-white/10" />

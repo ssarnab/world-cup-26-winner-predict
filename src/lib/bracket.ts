@@ -1,7 +1,7 @@
 export type Team = {
   name: string;
   abbr: string;
-  flag: string; // emoji flag
+  code: string; // ISO 3166-1 alpha-2 (flagcdn), e.g. "br". England uses "gb-eng".
 };
 
 // 32 teams in bracket order (ESPN World Cup 2026 bracket).
@@ -9,40 +9,49 @@ export type Team = {
 // Each consecutive pair is one Round-of-32 match.
 export const SEEDS: Team[] = [
   // ----- Left half -----
-  { name: "Germany", abbr: "GER", flag: "🇩🇪" },
-  { name: "Paraguay", abbr: "PAR", flag: "🇵🇾" },
-  { name: "France", abbr: "FRA", flag: "🇫🇷" },
-  { name: "Sweden", abbr: "SWE", flag: "🇸🇪" },
-  { name: "South Africa", abbr: "RSA", flag: "🇿🇦" },
-  { name: "Canada", abbr: "CAN", flag: "🇨🇦" },
-  { name: "Netherlands", abbr: "NED", flag: "🇳🇱" },
-  { name: "Morocco", abbr: "MAR", flag: "🇲🇦" },
-  { name: "Portugal", abbr: "POR", flag: "🇵🇹" },
-  { name: "Croatia", abbr: "CRO", flag: "🇭🇷" },
-  { name: "Spain", abbr: "ESP", flag: "🇪🇸" },
-  { name: "Austria", abbr: "AUT", flag: "🇦🇹" },
-  { name: "USA", abbr: "USA", flag: "🇺🇸" },
-  { name: "Bosnia", abbr: "BIH", flag: "🇧🇦" },
-  { name: "Belgium", abbr: "BEL", flag: "🇧🇪" },
-  { name: "Senegal", abbr: "SEN", flag: "🇸🇳" },
+  { name: "Germany", abbr: "GER", code: "de" },
+  { name: "Paraguay", abbr: "PAR", code: "py" },
+  { name: "France", abbr: "FRA", code: "fr" },
+  { name: "Sweden", abbr: "SWE", code: "se" },
+  { name: "South Africa", abbr: "RSA", code: "za" },
+  { name: "Canada", abbr: "CAN", code: "ca" },
+  { name: "Netherlands", abbr: "NED", code: "nl" },
+  { name: "Morocco", abbr: "MAR", code: "ma" },
+  { name: "Portugal", abbr: "POR", code: "pt" },
+  { name: "Croatia", abbr: "CRO", code: "hr" },
+  { name: "Spain", abbr: "ESP", code: "es" },
+  { name: "Austria", abbr: "AUT", code: "at" },
+  { name: "USA", abbr: "USA", code: "us" },
+  { name: "Bosnia", abbr: "BIH", code: "ba" },
+  { name: "Belgium", abbr: "BEL", code: "be" },
+  { name: "Senegal", abbr: "SEN", code: "sn" },
   // ----- Right half -----
-  { name: "Brazil", abbr: "BRA", flag: "🇧🇷" },
-  { name: "Japan", abbr: "JPN", flag: "🇯🇵" },
-  { name: "Ivory Coast", abbr: "CIV", flag: "🇨🇮" },
-  { name: "Norway", abbr: "NOR", flag: "🇳🇴" },
-  { name: "Mexico", abbr: "MEX", flag: "🇲🇽" },
-  { name: "Ecuador", abbr: "ECU", flag: "🇪🇨" },
-  { name: "England", abbr: "ENG", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  { name: "Congo DR", abbr: "COD", flag: "🇨🇩" },
-  { name: "Argentina", abbr: "ARG", flag: "🇦🇷" },
-  { name: "Cape Verde", abbr: "CPV", flag: "🇨🇻" },
-  { name: "Australia", abbr: "AUS", flag: "🇦🇺" },
-  { name: "Egypt", abbr: "EGY", flag: "🇪🇬" },
-  { name: "Switzerland", abbr: "SUI", flag: "🇨🇭" },
-  { name: "Algeria", abbr: "ALG", flag: "🇩🇿" },
-  { name: "Colombia", abbr: "COL", flag: "🇨🇴" },
-  { name: "Ghana", abbr: "GHA", flag: "🇬🇭" },
+  { name: "Brazil", abbr: "BRA", code: "br" },
+  { name: "Japan", abbr: "JPN", code: "jp" },
+  { name: "Ivory Coast", abbr: "CIV", code: "ci" },
+  { name: "Norway", abbr: "NOR", code: "no" },
+  { name: "Mexico", abbr: "MEX", code: "mx" },
+  { name: "Ecuador", abbr: "ECU", code: "ec" },
+  { name: "England", abbr: "ENG", code: "gb-eng" },
+  { name: "Congo DR", abbr: "COD", code: "cd" },
+  { name: "Argentina", abbr: "ARG", code: "ar" },
+  { name: "Cape Verde", abbr: "CPV", code: "cv" },
+  { name: "Australia", abbr: "AUS", code: "au" },
+  { name: "Egypt", abbr: "EGY", code: "eg" },
+  { name: "Switzerland", abbr: "SUI", code: "ch" },
+  { name: "Algeria", abbr: "ALG", code: "dz" },
+  { name: "Colombia", abbr: "COL", code: "co" },
+  { name: "Ghana", abbr: "GHA", code: "gh" },
 ];
+
+// Completed Round-of-32 results (ESPN). Key = R32 match index, value = winner.
+// These are locked: users see the real result and cannot change them.
+export const RESULTS: Record<number, string> = {
+  0: "Paraguay", // Germany 1 (3) vs Paraguay 1 (4) — pens
+  2: "Canada", // South Africa 0 vs Canada 1
+  3: "Morocco", // Netherlands 1 (2) vs Morocco 1 (3) — pens
+  8: "Brazil", // Brazil 2 vs Japan 1
+};
 
 export type RoundMeta = { key: string; name: string; short: string; matches: number };
 
@@ -63,6 +72,16 @@ export const slotKey = (round: number, match: number) => `${round}:${match}`;
 export type Picks = Record<string, string>; // "round:match" -> winning team name
 
 const byName = new Map(SEEDS.map((t) => [t.name, t]));
+
+/** A completed R32 match cannot be re-picked. */
+export function isLocked(round: number, match: number): boolean {
+  return round === 0 && match in RESULTS;
+}
+
+/** Locked results as a picks object, used to seed initial state. */
+export const LOCKED_PICKS: Picks = Object.fromEntries(
+  Object.entries(RESULTS).map(([m, winner]) => [slotKey(0, Number(m)), winner])
+);
 
 /** The two teams contesting a given match, derived from earlier picks. */
 export function teamsAt(
@@ -99,5 +118,5 @@ export function teamByName(name: string): Team | undefined {
   return byName.get(name);
 }
 
-/** How many of the user's picks are locked in (out of 31 total matches). */
+/** How many matches in total across all rounds. */
 export const TOTAL_MATCHES = ROUNDS.reduce((s, r) => s + r.matches, 0); // 31
