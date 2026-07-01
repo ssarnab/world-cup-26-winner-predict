@@ -5,10 +5,12 @@ import { Results, Picks } from "@/lib/bracket";
 import {
   UserScore,
   loadLeaderboard,
-  searchUsers,
+  loadAllUsers,
   loadPicks,
 } from "@/lib/db";
 import { Bracket, ChampionHero } from "./Bracket";
+
+const PAGE_SIZE = 10;
 
 function Avatar({ score }: { score: UserScore }) {
   if (score.user_photo) {
@@ -69,11 +71,15 @@ function ScoreRow({
           {isMe && <span className="ml-1.5 text-xs text-emerald-300">(you)</span>}
         </div>
         <div className="text-[11px] text-white/45">
-          {score.correct}/{score.graded} correct
+          {score.graded > 0
+            ? `${score.correct}/${score.graded} correct`
+            : "no results yet"}
         </div>
       </div>
       <div className="text-right">
-        <div className="text-lg font-black tabular-nums">{score.pct}%</div>
+        <div className="text-lg font-black tabular-nums">
+          {score.graded > 0 ? `${score.pct}%` : "—"}
+        </div>
       </div>
     </button>
   );
@@ -88,30 +94,37 @@ export default function Leaderboard({
   myUid: string;
   refreshSignal: number;
 }) {
-  const [board, setBoard] = useState<UserScore[]>([]);
+  const [top, setTop] = useState<UserScore[]>([]);
+
+  const [all, setAll] = useState<UserScore[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [q, setQ] = useState("");
-  const [found, setFound] = useState<UserScore[] | null>(null);
+
   const [viewing, setViewing] = useState<UserScore | null>(null);
   const [viewPicks, setViewPicks] = useState<Picks>({});
 
-  const refresh = useCallback(() => {
-    loadLeaderboard(10).then(setBoard);
-  }, []);
+  // Top 10 (no search)
+  useEffect(() => {
+    loadLeaderboard(10).then(setTop);
+  }, [refreshSignal]);
+
+  // All players (search + pagination)
+  const fetchAll = useCallback(() => {
+    loadAllUsers(page, PAGE_SIZE, q).then(({ rows, total }) => {
+      setAll(rows);
+      setTotal(total);
+    });
+  }, [page, q]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh, refreshSignal]);
-
-  // debounced search
-  useEffect(() => {
-    if (q.trim().length < 1) {
-      setFound(null);
-      return;
-    }
-    const t = setTimeout(() => {
-      searchUsers(q).then(setFound);
-    }, 250);
+    const t = setTimeout(fetchAll, 200);
     return () => clearTimeout(t);
+  }, [fetchAll, refreshSignal]);
+
+  // reset to first page whenever the search term changes
+  useEffect(() => {
+    setPage(0);
   }, [q]);
 
   const openUser = async (s: UserScore) => {
@@ -120,36 +133,57 @@ export default function Leaderboard({
     setViewPicks(await loadPicks(s.user_id));
   };
 
-  const list = found ?? board;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <section className="mx-auto max-w-2xl">
-      {/* Search */}
-      <div className="mb-4">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="🔍 Search players by name…"
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
-        />
-      </div>
-
+      {/* ---- Top predictors (top 10, no search) ---- */}
       <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-white/50">
-        {found ? `Search results (${found.length})` : "🏆 Top predictors"}
+        🏆 Top predictors
       </h2>
-
-      {list.length === 0 ? (
+      {top.length === 0 ? (
         <p className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-sm text-white/40">
-          {found
-            ? "No players found with that name."
-            : "No graded predictions yet. Be the first to climb the board!"}
+          No graded predictions yet — be the first to top the board!
         </p>
       ) : (
         <div className="space-y-2">
-          {list.map((s, i) => (
+          {top.map((s, i) => (
             <ScoreRow
               key={s.user_id}
-              rank={found ? undefined : i + 1}
+              rank={i + 1}
+              score={s}
+              isMe={s.user_id === myUid}
+              onView={() => openUser(s)}
+            />
+          ))}
+        </div>
+      )}
+      <p className="mt-2 px-1 text-xs text-white/30">
+        Ranked by accuracy %, ties broken by name. Top 10 only.
+      </p>
+
+      {/* ---- All players (search + pagination) ---- */}
+      <div className="mt-9 mb-3 flex items-center justify-between gap-3">
+        <h2 className="px-1 text-sm font-semibold uppercase tracking-wider text-white/50">
+          All players ({total})
+        </h2>
+      </div>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="🔍 Search all players by name…"
+        className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+      />
+
+      {all.length === 0 ? (
+        <p className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-sm text-white/40">
+          {q ? "No players match that name." : "No players yet."}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {all.map((s) => (
+            <ScoreRow
+              key={s.user_id}
               score={s}
               isMe={s.user_id === myUid}
               onView={() => openUser(s)}
@@ -158,11 +192,34 @@ export default function Leaderboard({
         </div>
       )}
 
+      {/* Pagination */}
+      {total > PAGE_SIZE && (
+        <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+          >
+            ← Prev
+          </button>
+          <span className="text-white/50">
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+          >
+            Next →
+          </button>
+        </div>
+      )}
+
       <p className="mt-3 px-1 text-xs text-white/30">
-        Ranked by accuracy %, ties broken by name. Tap anyone to see their bracket.
+        Tap anyone to see their full bracket.
       </p>
 
-      {/* View a user's bracket */}
+      {/* ---- View a user's bracket ---- */}
       {viewing && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
@@ -178,8 +235,9 @@ export default function Leaderboard({
                 <div>
                   <div className="text-lg font-black">{viewing.user_name}</div>
                   <div className="text-xs text-white/50">
-                    {viewing.correct}/{viewing.graded} correct · {viewing.pct}%
-                    accuracy
+                    {viewing.graded > 0
+                      ? `${viewing.correct}/${viewing.graded} correct · ${viewing.pct}% accuracy`
+                      : "No graded predictions yet"}
                   </div>
                 </div>
               </div>

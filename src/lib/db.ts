@@ -81,18 +81,22 @@ export async function loadLeaderboard(limit = 10): Promise<UserScore[]> {
   return data as UserScore[];
 }
 
-// ---- Search users by name ----
-export async function searchUsers(query: string): Promise<UserScore[]> {
-  if (!isSupabaseConfigured || query.trim().length < 1) return [];
-  const { data, error } = await supabase
-    .from("user_scores")
-    .select("*")
-    .ilike("user_name", `%${query.trim()}%`)
+// ---- All users who submitted, paginated + optional search ----
+export async function loadAllUsers(
+  page: number,
+  pageSize: number,
+  query = ""
+): Promise<{ rows: UserScore[]; total: number }> {
+  if (!isSupabaseConfigured) return { rows: [], total: 0 };
+  let q = supabase.from("user_scores").select("*", { count: "exact" });
+  const term = query.trim();
+  if (term) q = q.ilike("user_name", `%${term}%`);
+  const from = page * pageSize;
+  const { data, count } = await q
     .order("pct", { ascending: false })
     .order("user_name", { ascending: true })
-    .limit(20);
-  if (error || !data) return [];
-  return data as UserScore[];
+    .range(from, from + pageSize - 1);
+  return { rows: (data as UserScore[]) ?? [], total: count ?? 0 };
 }
 
 // ---- One user's score row ----
