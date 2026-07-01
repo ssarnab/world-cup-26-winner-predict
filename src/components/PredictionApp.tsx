@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Picks,
   Results,
+  Tallies,
   slotKey,
   isLocked,
   score,
@@ -13,10 +14,17 @@ import {
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
-import { loadResults, loadPicks, savePick, Identity } from "@/lib/db";
+import {
+  loadResults,
+  loadPicks,
+  savePick,
+  loadSlotTallies,
+  Identity,
+} from "@/lib/db";
 import { Bracket, ChampionHero } from "./Bracket";
 import Leaderboard from "./Leaderboard";
 import ChampionRace from "./ChampionRace";
+import { ConsensusBracket, ConsensusChampionHero } from "./ConsensusBracket";
 
 const PICKS_KEY = "wc26_bracket_picks";
 
@@ -26,7 +34,8 @@ export default function PredictionApp() {
 
   const [results, setResults] = useState<Results>({});
   const [picks, setPicks] = useState<Picks>({});
-  const [tab, setTab] = useState<"bracket" | "board">("bracket");
+  const [tallies, setTallies] = useState<Tallies>({});
+  const [tab, setTab] = useState<"bracket" | "favorite" | "board">("bracket");
   const [refreshSignal, setRefreshSignal] = useState(0);
   const savedReady = useRef(false);
 
@@ -34,10 +43,13 @@ export default function PredictionApp() {
     ? { uid: user.uid, name, photo: user.photoURL ?? null }
     : null;
 
-  // Load results once configured
+  // Load results + community vote tallies (refresh when anyone votes)
   useEffect(() => {
     loadResults().then(setResults);
   }, []);
+  useEffect(() => {
+    loadSlotTallies().then(setTallies);
+  }, [refreshSignal]);
 
   // Load this user's saved picks (DB first, localStorage as instant cache)
   useEffect(() => {
@@ -201,16 +213,19 @@ export default function PredictionApp() {
       </header>
 
       {/* Tabs */}
-      <div className="mb-5 flex gap-2">
+      <div className="mb-5 flex flex-wrap gap-2">
         <TabButton active={tab === "bracket"} onClick={() => setTab("bracket")}>
           🧩 My Bracket
+        </TabButton>
+        <TabButton active={tab === "favorite"} onClick={() => setTab("favorite")}>
+          🔥 All Favorite
         </TabButton>
         <TabButton active={tab === "board"} onClick={() => setTab("board")}>
           🏆 Leaderboard
         </TabButton>
       </div>
 
-      {tab === "bracket" ? (
+      {tab === "bracket" && (
         <>
           {/* Stats strip */}
           <div className="mb-2 grid grid-cols-3 gap-3">
@@ -270,7 +285,28 @@ export default function PredictionApp() {
             picks turn green ✓ or red ✗ as results come in. Saved automatically.
           </p>
         </>
-      ) : (
+      )}
+
+      {tab === "favorite" && (
+        <>
+          <div className="mb-4 rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-4 text-center">
+            <h2 className="text-lg font-black">🔥 The People&apos;s Bracket</h2>
+            <p className="mx-auto mt-1 max-w-lg text-xs text-white/50">
+              Built from everyone&apos;s predictions — each match advances the team
+              the crowd backs most, with the % that agree. Matches that are
+              already decided show the real result.
+            </p>
+          </div>
+          <ConsensusChampionHero tallies={tallies} results={results} />
+          <ConsensusBracket tallies={tallies} results={results} />
+          <p className="mt-3 text-center text-xs text-white/35">
+            Amber = crowd favourite (with % who agree) · grey “RESULT” = already
+            decided. Updates live as people predict.
+          </p>
+        </>
+      )}
+
+      {tab === "board" && (
         <div className="mx-auto max-w-2xl">
           <ChampionRace refreshSignal={refreshSignal} />
           <Leaderboard

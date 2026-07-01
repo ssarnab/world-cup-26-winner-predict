@@ -115,6 +115,63 @@ export function champion(picks: Picks, results: Results): Team | null {
   return effectiveWinner(FINAL_ROUND, 0, picks, results);
 }
 
+// ---------- Consensus ("fan favourite") bracket ----------
+// tallies[slot][teamName] = how many people predicted that team to win that slot.
+export type Tallies = Record<string, Record<string, number>>;
+export type Consensus = {
+  team: Team | null;
+  votes: number; // votes for the favourite
+  total: number; // votes for either of the two teams in this match
+  pct: number; // votes / total
+  decided: boolean; // true when the match already has a real result
+};
+
+export function consensusTeamsAt(
+  round: number,
+  m: number,
+  tallies: Tallies,
+  results: Results
+): [Team | null, Team | null] {
+  if (round === 0) {
+    return [SEEDS[m * 2] ?? null, SEEDS[m * 2 + 1] ?? null];
+  }
+  return [
+    consensusWinner(round - 1, m * 2, tallies, results).team,
+    consensusWinner(round - 1, m * 2 + 1, tallies, results).team,
+  ];
+}
+
+/** The crowd favourite for a slot: the real winner if decided, otherwise
+ *  whichever of the two teams more people predicted to win here. */
+export function consensusWinner(
+  round: number,
+  m: number,
+  tallies: Tallies,
+  results: Results
+): Consensus {
+  const [a, b] = consensusTeamsAt(round, m, tallies, results);
+  const key = slotKey(round, m);
+
+  if (results[key]) {
+    return { team: pickTeam(a, b, results[key]), votes: 0, total: 0, pct: 0, decided: true };
+  }
+
+  const tally = tallies[key] ?? {};
+  const va = a ? tally[a.name] ?? 0 : 0;
+  const vb = b ? tally[b.name] ?? 0 : 0;
+  const total = va + vb;
+  if (total === 0) {
+    return { team: null, votes: 0, total: 0, pct: 0, decided: false };
+  }
+  const team = va >= vb ? a : b;
+  const votes = Math.max(va, vb);
+  return { team, votes, total, pct: Math.round((votes / total) * 100), decided: false };
+}
+
+export function consensusChampion(tallies: Tallies, results: Results): Consensus {
+  return consensusWinner(FINAL_ROUND, 0, tallies, results);
+}
+
 // ---------- Grading (compare the user's pick to the real result) ----------
 export type Grade = "correct" | "wrong" | null;
 

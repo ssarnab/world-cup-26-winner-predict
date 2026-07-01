@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
-import { Picks, Results, slotKey } from "./bracket";
+import { Picks, Results, Tallies, slotKey } from "./bracket";
 
 export type UserScore = {
   user_id: string;
@@ -97,6 +97,29 @@ export async function loadAllUsers(
     .order("user_name", { ascending: true })
     .range(from, from + pageSize - 1);
   return { rows: (data as UserScore[]) ?? [], total: count ?? 0 };
+}
+
+// ---- Vote tallies per match slot (for the consensus / favourite bracket) ----
+export async function loadSlotTallies(): Promise<Tallies> {
+  if (!isSupabaseConfigured) return {};
+  const out: Tallies = {};
+  const pageSize = 1000;
+  let from = 0;
+  // paginate so it keeps working past PostgREST's default row cap
+  for (;;) {
+    const { data, error } = await supabase
+      .from("predictions")
+      .select("round, match_index, selected_team")
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    data.forEach((r) => {
+      const k = slotKey(r.round, r.match_index);
+      (out[k] ??= {})[r.selected_team] = (out[k][r.selected_team] ?? 0) + 1;
+    });
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
 }
 
 // ---- Champion race: how many predicted each team to win the final ----
