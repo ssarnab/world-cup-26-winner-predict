@@ -7,6 +7,7 @@ import {
   champion,
   effectiveWinner,
   gradeOf,
+  hasStarted,
   isLocked,
   slotKey,
   teamsAt,
@@ -69,10 +70,12 @@ export function Bracket({
   picks,
   results,
   onPick,
+  now = Date.now(),
 }: {
   picks: Picks;
   results: Results;
   onPick?: (round: number, match: number, team: string) => void;
+  now?: number;
 }) {
   return (
     <div className="overflow-x-auto pb-3">
@@ -94,6 +97,7 @@ export function Bracket({
                   picks={picks}
                   results={results}
                   onPick={onPick}
+                  now={now}
                   center={col.center}
                 />
               ))}
@@ -111,6 +115,7 @@ function MatchBox({
   picks,
   results,
   onPick,
+  now = Date.now(),
   center,
 }: {
   round: number;
@@ -118,18 +123,21 @@ function MatchBox({
   picks: Picks;
   results: Results;
   onPick?: (round: number, match: number, team: string) => void;
+  now?: number;
   center?: boolean;
 }) {
   const key = slotKey(round, match);
   const [a, b] = teamsAt(round, match, picks, results);
   const effWinner = effectiveWinner(round, match, picks, results);
   const locked = isLocked(round, match, results);
+  const started = !locked && hasStarted(round, match, now); // kicked off, no result yet
   const grade = gradeOf(round, match, picks, results); // correct | wrong | null
   const actualWinner = results[key];
 
   const rawPick = picks[key];
   const validPick = Boolean(rawPick && (a?.name === rawPick || b?.name === rawPick));
   const bothReady = Boolean(a && b);
+  // started matches stay clickable so the tap shows the "locked" warning
   const canClick = Boolean(onPick) && bothReady && !locked;
 
   const row = (team: Team | null) => {
@@ -187,6 +195,8 @@ function MatchBox({
       ? "border-emerald-400/50"
       : grade === "wrong"
       ? "border-red-400/50"
+      : started
+      ? "border-amber-400/30"
       : validPick && !locked
       ? "border-blue-400/40"
       : locked
@@ -197,8 +207,16 @@ function MatchBox({
 
   return (
     <div
-      className={`w-[128px] overflow-hidden rounded-lg border bg-white/[0.03] sm:w-[140px] ${border}`}
+      className={`relative w-[128px] overflow-hidden rounded-lg border bg-white/[0.03] sm:w-[140px] ${border}`}
     >
+      {started && (
+        <span
+          className="absolute right-1 top-1 z-20 text-[10px]"
+          title="Match has started — locked"
+        >
+          🔒
+        </span>
+      )}
       {row(a)}
       <div className="h-px bg-white/10" />
       {row(b)}

@@ -7,6 +7,7 @@ import {
   Tallies,
   slotKey,
   isLocked,
+  hasStarted,
   score,
   decidedCount,
   TOTAL_MATCHES,
@@ -37,6 +38,21 @@ export default function PredictionApp() {
   const [tallies, setTallies] = useState<Tallies>({});
   const [tab, setTab] = useState<"bracket" | "favorite" | "board">("bracket");
   const [refreshSignal, setRefreshSignal] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [warning, setWarning] = useState<string | null>(null);
+
+  // tick the clock so matches lock the moment they kick off
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // auto-dismiss the warning
+  useEffect(() => {
+    if (!warning) return;
+    const id = setTimeout(() => setWarning(null), 4000);
+    return () => clearTimeout(id);
+  }, [warning]);
   const savedReady = useRef(false);
 
   const identity: Identity | null = user
@@ -93,7 +109,14 @@ export default function PredictionApp() {
 
   const handlePick = useCallback(
     (round: number, match: number, team: string) => {
-      if (!identity || isLocked(round, match, results)) return;
+      if (!identity) return;
+      if (isLocked(round, match, results)) return; // decided — shown as WON
+      if (hasStarted(round, match, now)) {
+        setWarning(
+          "🔒 This match has already kicked off — its prediction is locked and can't be changed."
+        );
+        return;
+      }
       setPicks((prev) => {
         const next = { ...prev, [slotKey(round, match)]: team };
         localStorage.setItem(
@@ -104,7 +127,7 @@ export default function PredictionApp() {
       });
       savePick(identity, round, match, team);
     },
-    [results, identity]
+    [results, identity, now]
   );
 
   const myScore = useMemo(() => score(picks, results), [picks, results]);
@@ -181,6 +204,15 @@ export default function PredictionApp() {
   // ---------- Signed in ----------
   return (
     <main className="mx-auto w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-5">
+      {/* Kickoff-lock warning toast */}
+      {warning && (
+        <div className="fixed inset-x-0 top-4 z-50 flex justify-center px-4">
+          <div className="max-w-md rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-3 text-center text-sm text-amber-100 shadow-lg backdrop-blur">
+            {warning}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -277,7 +309,12 @@ export default function PredictionApp() {
           </div>
 
           <ChampionHero picks={picks} results={results} />
-          <Bracket picks={picks} results={results} onPick={handlePick} />
+          <Bracket
+            picks={picks}
+            results={results}
+            onPick={handlePick}
+            now={now}
+          />
 
           <p className="mt-3 text-center text-xs text-white/35">
             Tap a team to advance it to your champion. Matches that are already

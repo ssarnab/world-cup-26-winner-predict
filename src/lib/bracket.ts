@@ -60,6 +60,47 @@ export const TOTAL_MATCHES = ROUNDS.reduce((s, r) => s + r.matches, 0); // 31
 
 export const slotKey = (round: number, match: number) => `${round}:${match}`;
 
+// Round-of-32 kickoff times in Bangladesh time (UTC+6). Once a match has
+// kicked off, its prediction locks. Later rounds aren't scheduled yet.
+export const KICKOFFS: Record<number, string> = {
+  0: "2026-06-30T02:30:00+06:00", // Germany vs Paraguay
+  1: "2026-07-01T03:00:00+06:00", // France vs Sweden
+  2: "2026-06-29T01:00:00+06:00", // South Africa vs Canada
+  3: "2026-06-30T07:00:00+06:00", // Netherlands vs Morocco
+  4: "2026-07-03T05:00:00+06:00", // Portugal vs Croatia
+  5: "2026-07-03T01:00:00+06:00", // Spain vs Austria
+  6: "2026-07-02T06:00:00+06:00", // USA vs Bosnia
+  7: "2026-07-02T02:00:00+06:00", // Belgium vs Senegal
+  8: "2026-06-29T23:00:00+06:00", // Brazil vs Japan
+  9: "2026-06-30T23:00:00+06:00", // Ivory Coast vs Norway
+  10: "2026-07-01T07:00:00+06:00", // Mexico vs Ecuador
+  11: "2026-07-01T22:00:00+06:00", // England vs Congo DR
+  12: "2026-07-04T04:00:00+06:00", // Argentina vs Cape Verde
+  13: "2026-07-04T00:00:00+06:00", // Australia vs Egypt
+  14: "2026-07-03T09:00:00+06:00", // Switzerland vs Algeria
+  15: "2026-07-04T07:30:00+06:00", // Colombia vs Ghana
+};
+
+export function kickoffOf(round: number, m: number): string | null {
+  return round === 0 ? KICKOFFS[m] ?? null : null;
+}
+
+/** Has this match kicked off yet (BD time)? nowMs defaults to Date.now(). */
+export function hasStarted(round: number, m: number, nowMs = Date.now()): boolean {
+  const k = kickoffOf(round, m);
+  return k ? nowMs >= new Date(k).getTime() : false;
+}
+
+/** Prediction is editable only before kickoff and before a result exists. */
+export function canPredict(
+  round: number,
+  m: number,
+  results: Results,
+  nowMs = Date.now()
+): boolean {
+  return !results[slotKey(round, m)] && !hasStarted(round, m, nowMs);
+}
+
 export type Picks = Record<string, string>; // "round:match" -> team the user picked
 export type Results = Record<string, string>; // "round:match" -> actual winner
 
