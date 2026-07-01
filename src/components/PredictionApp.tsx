@@ -26,6 +26,7 @@ import { Bracket, ChampionHero } from "./Bracket";
 import Leaderboard from "./Leaderboard";
 import ChampionRace from "./ChampionRace";
 import { ConsensusBracket, ConsensusChampionHero } from "./ConsensusBracket";
+import ThemeToggle from "./ThemeToggle";
 
 const PICKS_KEY = "wc26_bracket_picks";
 
@@ -148,21 +149,24 @@ export default function PredictionApp() {
   if (loading) {
     return (
       <Centered>
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-emerald-400" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-emerald-400" />
       </Centered>
     );
   }
   if (!user) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-5 py-12 text-center">
+        <div className="absolute right-4 top-4">
+          <ThemeToggle />
+        </div>
         <div className="mb-4 text-6xl">🏆</div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400/80">
           FIFA World Cup 2026™
         </p>
-        <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black leading-tight tracking-tight text-transparent sm:text-5xl">
+        <h1 className="bg-gradient-to-b from-fg to-fg-muted bg-clip-text text-4xl font-black leading-tight tracking-tight text-transparent sm:text-5xl">
           Predict the Knockout Bracket
         </h1>
-        <p className="mt-4 max-w-md text-base text-white/60">
+        <p className="mt-4 max-w-md text-base text-fg-muted">
           Pick the winner of every match — from the Round of 32 all the way to
           the Final — build your own bracket and crown your World Champion. As
           real results come in, see which of your picks were right and climb the
@@ -176,13 +180,13 @@ export default function PredictionApp() {
           ].map((f) => (
             <div
               key={f.title}
-              className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+              className="rounded-xl border border-border bg-surface p-3"
             >
               <div className="text-xl">{f.icon}</div>
-              <div className="mt-1 text-xs font-semibold text-white/90">
+              <div className="mt-1 text-xs font-semibold text-fg">
                 {f.title}
               </div>
-              <div className="text-[10px] text-white/45">{f.sub}</div>
+              <div className="text-[10px] text-fg-muted">{f.sub}</div>
             </div>
           ))}
         </div>
@@ -193,7 +197,7 @@ export default function PredictionApp() {
           <GoogleIcon />
           Sign in with Google to start
         </button>
-        <p className="mt-3 text-xs text-white/35">
+        <p className="mt-3 text-xs text-fg-subtle">
           Free · sign in saves your bracket. Not affiliated with FIFA.
         </p>
         {authError && <p className="mt-4 text-xs text-red-300/90">{authError}</p>}
@@ -224,6 +228,7 @@ export default function PredictionApp() {
           </h1>
         </div>
         <div className="flex items-center gap-2 text-sm sm:gap-3">
+          <ThemeToggle />
           {user.photoURL && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -231,13 +236,13 @@ export default function PredictionApp() {
               alt=""
               width={32}
               height={32}
-              className="h-8 w-8 rounded-full ring-1 ring-white/20"
+              className="h-8 w-8 rounded-full ring-1 ring-border"
             />
           )}
-          <span className="hidden text-white/70 sm:inline">{name}</span>
+          <span className="hidden text-fg-muted sm:inline">{name}</span>
           <button
             onClick={logout}
-            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition hover:border-fg-subtle hover:text-fg"
           >
             Sign out
           </button>
@@ -273,7 +278,7 @@ export default function PredictionApp() {
             />
             <StatCard big={`${decided}/${TOTAL_MATCHES}`} label="Predicted" />
           </div>
-          <p className="mb-5 text-center text-xs text-white/45">
+          <p className="mb-5 text-center text-xs text-fg-muted">
             {myScore.graded > 0 ? (
               <>
                 <span className="text-emerald-300">
@@ -289,7 +294,7 @@ export default function PredictionApp() {
           </p>
 
           {/* Legend */}
-          <div className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-white/50">
+          <div className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-fg-muted">
             <span className="flex items-center gap-1.5">
               <span className="inline-block h-3 w-3 rounded bg-blue-500/50" />
               Your pick
@@ -303,7 +308,7 @@ export default function PredictionApp() {
               Wrong ✗
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded border border-white/25" />
+              <span className="inline-block h-3 w-3 rounded border border-border" />
               Already decided (WON)
             </span>
           </div>
@@ -316,7 +321,7 @@ export default function PredictionApp() {
             now={now}
           />
 
-          <p className="mt-3 text-center text-xs text-white/35">
+          <p className="mt-3 text-center text-xs text-fg-subtle">
             Tap a team to advance it to your champion. Matches that are already
             decided are locked (shown as “WON”, outside your prediction). Your
             picks turn green ✓ or red ✗ as results come in. Saved automatically.
@@ -328,7 +333,7 @@ export default function PredictionApp() {
         <>
           <ConsensusChampionHero tallies={tallies} results={results} />
           <ConsensusBracket tallies={tallies} results={results} />
-          <p className="mt-3 text-center text-xs text-white/35">
+          <p className="mt-3 text-center text-xs text-fg-subtle">
             Amber = crowd favourite (with % who agree) · grey “RESULT” = already
             decided. Updates live as people predict.
           </p>
@@ -346,7 +351,7 @@ export default function PredictionApp() {
         </div>
       )}
 
-      <footer className="mt-12 text-center text-xs text-white/30">
+      <footer className="mt-12 text-center text-xs text-fg-subtle">
         Fan predictions · not affiliated with FIFA · built for fun
       </footer>
     </main>
@@ -369,8 +374,8 @@ function TabButton({
       className={`rounded-xl border px-4 py-2 text-sm font-semibold transition
         ${
           active
-            ? "border-emerald-400/50 bg-emerald-400/15 text-white"
-            : "border-white/10 bg-white/[0.03] text-white/60 hover:text-white"
+            ? "border-emerald-400/50 bg-emerald-400/15 text-fg"
+            : "border-border bg-surface text-fg-muted hover:text-fg"
         }`}
     >
       {children}
@@ -388,19 +393,19 @@ function StatCard({
   accent?: "emerald" | "red";
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center">
+    <div className="rounded-2xl border border-border bg-surface p-4 text-center">
       <div
         className={`text-2xl font-black tabular-nums sm:text-3xl ${
           accent === "emerald"
             ? "text-emerald-400"
             : accent === "red"
             ? "text-red-400"
-            : "text-white"
+            : "text-fg"
         }`}
       >
         {big}
       </div>
-      <div className="mt-1 text-[11px] uppercase tracking-wider text-white/45">
+      <div className="mt-1 text-[11px] uppercase tracking-wider text-fg-muted">
         {label}
       </div>
     </div>

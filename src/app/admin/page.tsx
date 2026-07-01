@@ -108,7 +108,7 @@ export default function AdminPage() {
       <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-5 text-center">
         <div className="mb-3 text-4xl">🔐</div>
         <h1 className="text-2xl font-black">Admin access</h1>
-        <p className="mt-2 text-sm text-white/50">
+        <p className="mt-2 text-sm text-fg-muted">
           Enter results once a match is over. Restricted area.
         </p>
         <div className="mt-6 w-full space-y-3">
@@ -116,7 +116,7 @@ export default function AdminPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+            className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm outline-none placeholder:text-fg-subtle focus:border-emerald-400/60"
           />
           <input
             type="password"
@@ -124,7 +124,7 @@ export default function AdminPage() {
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && login()}
             placeholder="Password"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+            className="w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm outline-none placeholder:text-fg-subtle focus:border-emerald-400/60"
           />
           <button
             onClick={login}
@@ -135,7 +135,7 @@ export default function AdminPage() {
           </button>
         </div>
         {err && <p className="mt-4 text-xs text-red-300/90">{err}</p>}
-        <a href="/" className="mt-6 text-xs text-white/35 hover:text-white/60">
+        <a href="/" className="mt-6 text-xs text-fg-subtle hover:text-fg-muted">
           ← Back to site
         </a>
       </main>
@@ -163,19 +163,19 @@ export default function AdminPage() {
             setAuthed(false);
             setPassword("");
           }}
-          className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+          className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition hover:border-fg-subtle hover:text-fg"
         >
           Lock
         </button>
       </header>
 
       {/* Set / update form */}
-      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white/50">
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-fg-muted">
           Set / update a result
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-xs text-white/50">
+          <label className="text-xs text-fg-muted">
             Round
             <select
               value={round}
@@ -184,16 +184,16 @@ export default function AdminPage() {
                 setMatchIndex(0);
                 setWinner("");
               }}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60"
+              className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-fg outline-none focus:border-emerald-400/60"
             >
               {ROUNDS.map((r, i) => (
-                <option key={r.key} value={i} className="bg-[#0c0c12]">
+                <option key={r.key} value={i} className="bg-surface-2">
                   {r.name}
                 </option>
               ))}
             </select>
           </label>
-          <label className="text-xs text-white/50">
+          <label className="text-xs text-fg-muted">
             Match #
             <select
               value={matchIndex}
@@ -201,28 +201,28 @@ export default function AdminPage() {
                 setMatchIndex(Number(e.target.value));
                 setWinner("");
               }}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60"
+              className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-fg outline-none focus:border-emerald-400/60"
             >
               {Array.from({ length: matchCount }, (_, i) => (
-                <option key={i} value={i} className="bg-[#0c0c12]">
+                <option key={i} value={i} className="bg-surface-2">
                   #{i} — {matchLabel(round, i)}
                 </option>
               ))}
             </select>
           </label>
-          <label className="text-xs text-white/50">
+          <label className="text-xs text-fg-muted">
             Winner
             {round === 0 ? (
               <select
                 value={winner}
                 onChange={(e) => setWinner(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400/60"
+                className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-fg outline-none focus:border-emerald-400/60"
               >
-                <option value="" className="bg-[#0c0c12]">
+                <option value="" className="bg-surface-2">
                   Select…
                 </option>
                 {round0Teams.map((t) => (
-                  <option key={t!.name} value={t!.name} className="bg-[#0c0c12]">
+                  <option key={t!.name} value={t!.name} className="bg-surface-2">
                     {t!.name}
                   </option>
                 ))}
@@ -232,7 +232,7 @@ export default function AdminPage() {
                 value={winner}
                 onChange={(e) => setWinner(e.target.value)}
                 placeholder="Exact team name"
-                className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+                className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-fg outline-none placeholder:text-fg-subtle focus:border-emerald-400/60"
               />
             )}
           </label>
@@ -247,7 +247,7 @@ export default function AdminPage() {
         {msg && <p className="mt-3 text-xs text-emerald-300/90">{msg}</p>}
         {err && <p className="mt-3 text-xs text-red-300/90">{err}</p>}
         {round !== 0 && (
-          <p className="mt-3 text-xs text-white/35">
+          <p className="mt-3 text-xs text-fg-subtle">
             For R16+ the team name must exactly match the app (e.g. “France”,
             “USA”, “Congo DR”).
           </p>
@@ -256,11 +256,11 @@ export default function AdminPage() {
 
       {/* Current results */}
       <section className="mt-6">
-        <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-white/50">
+        <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-fg-muted">
           Current results ({results.length})
         </h2>
         {results.length === 0 ? (
-          <p className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-center text-sm text-white/40">
+          <p className="rounded-xl border border-border bg-surface p-4 text-center text-sm text-fg-subtle">
             No results entered yet.
           </p>
         ) : (
@@ -268,13 +268,13 @@ export default function AdminPage() {
             {results.map((r) => (
               <div
                 key={`${r.round}-${r.match_index}`}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-2.5"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
                     {matchLabel(r.round, r.match_index)}
                   </div>
-                  <div className="text-[11px] text-white/45">
+                  <div className="text-[11px] text-fg-muted">
                     {ROUNDS[r.round]?.short} · winner:{" "}
                     <span className="font-semibold text-emerald-300">
                       {r.winner}
@@ -296,7 +296,7 @@ export default function AdminPage() {
 
       <a
         href="/"
-        className="mt-8 inline-block text-xs text-white/35 hover:text-white/60"
+        className="mt-8 inline-block text-xs text-fg-subtle hover:text-fg-muted"
       >
         ← Back to site
       </a>

@@ -59,7 +59,7 @@ export function ChampionHero({
             {grade === "wrong" && <span className="text-red-400">✗</span>}
           </p>
         ) : (
-          <p className="text-2xl font-black text-white/40 sm:text-3xl">?</p>
+          <p className="text-2xl font-black text-fg-subtle sm:text-3xl">?</p>
         )}
       </div>
     </div>
@@ -85,7 +85,7 @@ export function Bracket({
       >
         {COLUMNS.map((col, ci) => (
           <div key={ci} className="flex h-full flex-col">
-            <div className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-white/35">
+            <div className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
               {col.label}
             </div>
             <div className="flex flex-1 flex-col justify-around">
@@ -143,7 +143,7 @@ function MatchBox({
   const row = (team: Team | null) => {
     if (!team) {
       return (
-        <div className="flex h-7 items-center gap-1.5 px-2 text-white/25">
+        <div className="flex h-7 items-center gap-1.5 px-2 text-fg-subtle">
           <span className="text-xs">—</span>
         </div>
       );
@@ -152,25 +152,25 @@ function MatchBox({
     const isRealWinner = locked && actualWinner === team.name;
     const isEff = effWinner?.name === team.name;
 
-    let cls = "text-white/85";
+    let cls = "text-fg";
     let badge: React.ReactNode = null;
 
     if (isUserPick && grade === "correct") {
-      cls = "bg-emerald-500/25 text-white";
+      cls = "bg-emerald-500/25 text-fg";
       badge = <span className="ml-auto font-bold text-emerald-300">✓</span>;
     } else if (isUserPick && grade === "wrong") {
-      cls = "bg-red-500/25 text-white line-through decoration-red-400/60";
+      cls = "bg-red-500/25 text-fg line-through decoration-red-400/60";
       badge = <span className="ml-auto font-bold text-red-400">✗</span>;
     } else if (isUserPick) {
       // your prediction, no result yet — distinct blue
-      cls = "bg-blue-500/25 text-white";
+      cls = "bg-blue-500/25 text-fg";
       badge = <span className="ml-auto text-[9px] font-semibold text-blue-300">PICK</span>;
     } else if (isRealWinner) {
       // real winner you didn't pick (already decided, outside your prediction)
-      cls = "text-white/80";
-      badge = <span className="ml-auto text-[9px] font-semibold text-white/40">WON</span>;
+      cls = "text-fg";
+      badge = <span className="ml-auto text-[9px] font-semibold text-fg-subtle">WON</span>;
     } else if (effWinner && !isEff) {
-      cls = "text-white/35";
+      cls = "text-fg-subtle";
     }
 
     return (
@@ -181,7 +181,7 @@ function MatchBox({
         title={team.name}
         className={`flex h-7 w-full items-center gap-1.5 px-2 text-left transition
           ${cls}
-          ${canClick ? "cursor-pointer hover:bg-white/10" : "cursor-default"}`}
+          ${canClick ? "cursor-pointer hover:bg-hover" : "cursor-default"}`}
       >
         <Flag code={team.code} />
         <span className="truncate text-xs font-medium">{team.name}</span>
@@ -200,14 +200,14 @@ function MatchBox({
       : validPick && !locked
       ? "border-blue-400/40"
       : locked
-      ? "border-white/15"
+      ? "border-border"
       : center
       ? "border-emerald-400/40"
-      : "border-white/10";
+      : "border-border";
 
   return (
     <div
-      className={`relative w-[128px] overflow-hidden rounded-lg border bg-white/[0.03] sm:w-[140px] ${border}`}
+      className={`relative w-[128px] overflow-hidden rounded-lg border bg-surface sm:w-[140px] ${border}`}
     >
       {started && (
         <span
@@ -218,7 +218,7 @@ function MatchBox({
         </span>
       )}
       {row(a)}
-      <div className="h-px bg-white/10" />
+      <div className="h-px bg-border" />
       {row(b)}
     </div>
   );

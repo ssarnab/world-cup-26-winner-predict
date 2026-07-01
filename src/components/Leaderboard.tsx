@@ -21,12 +21,12 @@ function Avatar({ score }: { score: UserScore }) {
         alt=""
         width={32}
         height={32}
-        className="h-8 w-8 rounded-full ring-1 ring-white/20"
+        className="h-8 w-8 rounded-full ring-1 ring-border"
       />
     );
   }
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70">
+    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-border text-xs font-bold text-fg-muted">
       {score.user_name.charAt(0).toUpperCase()}
     </div>
   );
@@ -46,8 +46,8 @@ function ScoreRow({
   return (
     <button
       onClick={onView}
-      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-white/25
-        ${isMe ? "border-emerald-400/40 bg-emerald-400/10" : "border-white/10 bg-white/[0.03]"}`}
+      className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-fg-subtle
+        ${isMe ? "border-emerald-400/40 bg-emerald-400/10" : "border-border bg-surface"}`}
     >
       {rank !== undefined && (
         <span
@@ -58,7 +58,7 @@ function ScoreRow({
               ? "text-slate-300"
               : rank === 3
               ? "text-amber-600"
-              : "text-white/40"
+              : "text-fg-subtle"
           }`}
         >
           {rank}
@@ -70,7 +70,7 @@ function ScoreRow({
           {score.user_name}
           {isMe && <span className="ml-1.5 text-xs text-emerald-300">(you)</span>}
         </div>
-        <div className="text-[11px] text-white/45">
+        <div className="text-[11px] text-fg-muted">
           {score.graded > 0
             ? `${score.correct}/${score.graded} correct`
             : "no results yet"}
@@ -138,11 +138,11 @@ export default function Leaderboard({
   return (
     <section className="mx-auto max-w-2xl">
       {/* ---- Top predictors (top 10, no search) ---- */}
-      <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-white/50">
+      <h2 className="mb-3 px-1 text-sm font-semibold uppercase tracking-wider text-fg-muted">
         🏆 Top predictors
       </h2>
       {top.length === 0 ? (
-        <p className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-sm text-white/40">
+        <p className="rounded-xl border border-border bg-surface p-5 text-center text-sm text-fg-subtle">
           No graded predictions yet — be the first to top the board!
         </p>
       ) : (
@@ -158,13 +158,13 @@ export default function Leaderboard({
           ))}
         </div>
       )}
-      <p className="mt-2 px-1 text-xs text-white/30">
+      <p className="mt-2 px-1 text-xs text-fg-subtle">
         Ranked by accuracy %, ties broken by name. Top 10 only.
       </p>
 
       {/* ---- All players (search + pagination) ---- */}
       <div className="mt-9 mb-3 flex items-center justify-between gap-3">
-        <h2 className="px-1 text-sm font-semibold uppercase tracking-wider text-white/50">
+        <h2 className="px-1 text-sm font-semibold uppercase tracking-wider text-fg-muted">
           All players ({total})
         </h2>
       </div>
@@ -172,11 +172,11 @@ export default function Leaderboard({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Search all players by name…"
-        className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm outline-none placeholder:text-white/30 focus:border-emerald-400/60"
+        className="mb-3 w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm outline-none placeholder:text-fg-subtle focus:border-emerald-400/60"
       />
 
       {all.length === 0 ? (
-        <p className="rounded-xl border border-white/10 bg-white/[0.02] p-5 text-center text-sm text-white/40">
+        <p className="rounded-xl border border-border bg-surface p-5 text-center text-sm text-fg-subtle">
           {q ? "No players match that name." : "No players yet."}
         </p>
       ) : (
@@ -198,24 +198,24 @@ export default function Leaderboard({
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition hover:border-fg-subtle hover:text-fg disabled:opacity-30"
           >
             ← Prev
           </button>
-          <span className="text-white/50">
+          <span className="text-fg-muted">
             Page {page + 1} of {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white disabled:opacity-30"
+            className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition hover:border-fg-subtle hover:text-fg disabled:opacity-30"
           >
             Next →
           </button>
         </div>
       )}
 
-      <p className="mt-3 px-1 text-xs text-white/30">
+      <p className="mt-3 px-1 text-xs text-fg-subtle">
         Tap anyone to see their full bracket.
       </p>
 
@@ -226,7 +226,7 @@ export default function Leaderboard({
           onClick={() => setViewing(null)}
         >
           <div
-            className="my-6 w-full max-w-[1500px] rounded-2xl border border-white/10 bg-[#0c0c12] p-4 sm:p-6"
+            className="my-6 w-full max-w-[1500px] rounded-2xl border border-border bg-surface-2 p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -234,7 +234,7 @@ export default function Leaderboard({
                 <Avatar score={viewing} />
                 <div>
                   <div className="text-lg font-black">{viewing.user_name}</div>
-                  <div className="text-xs text-white/50">
+                  <div className="text-xs text-fg-muted">
                     {viewing.graded > 0
                       ? `${viewing.correct}/${viewing.graded} correct · ${viewing.pct}% accuracy`
                       : "No graded predictions yet"}
@@ -243,7 +243,7 @@ export default function Leaderboard({
               </div>
               <button
                 onClick={() => setViewing(null)}
-                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/30 hover:text-white"
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg-muted transition hover:border-fg-subtle hover:text-fg"
               >
                 Close ✕
               </button>

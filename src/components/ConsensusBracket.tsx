@@ -48,7 +48,7 @@ export function ConsensusChampionHero({
             )}
           </p>
         ) : (
-          <p className="text-2xl font-black text-white/40 sm:text-3xl">?</p>
+          <p className="text-2xl font-black text-fg-subtle sm:text-3xl">?</p>
         )}
       </div>
     </div>
@@ -70,7 +70,7 @@ export function ConsensusBracket({
       >
         {COLUMNS.map((col, ci) => (
           <div key={ci} className="flex h-full flex-col">
-            <div className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-white/35">
+            <div className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">
               {col.label}
             </div>
             <div className="flex flex-1 flex-col justify-around">
@@ -112,7 +112,7 @@ function ConsensusBox({
   const row = (team: Team | null) => {
     if (!team) {
       return (
-        <div className="flex h-8 items-center gap-1.5 px-2 text-white/25">
+        <div className="flex h-8 items-center gap-1.5 px-2 text-fg-subtle">
           <span className="text-xs">—</span>
         </div>
       );
@@ -121,26 +121,26 @@ function ConsensusBox({
     const teamVotes = tallies[`${round}:${match}`]?.[team.name] ?? 0;
     const teamPct = c.total > 0 ? Math.round((teamVotes / c.total) * 100) : 0;
 
-    let cls = "text-white/70";
+    let cls = "text-fg-muted";
     let badge: React.ReactNode = null;
 
     if (decided && isFav) {
-      cls = "bg-white/10 text-white";
-      badge = <span className="ml-auto text-[9px] font-semibold text-white/45">RESULT</span>;
+      cls = "bg-border text-fg";
+      badge = <span className="ml-auto text-[9px] font-semibold text-fg-muted">RESULT</span>;
     } else if (decided) {
-      cls = "text-white/30";
+      cls = "text-fg-subtle";
     } else if (isFav) {
-      cls = "bg-amber-500/25 text-white";
+      cls = "bg-amber-500/25 text-fg";
       badge = (
         <span className="ml-auto text-[11px] font-black tabular-nums text-amber-300">
           {teamPct}%
         </span>
       );
     } else {
-      cls = "text-white/40";
+      cls = "text-fg-subtle";
       badge =
         c.total > 0 ? (
-          <span className="ml-auto text-[10px] tabular-nums text-white/30">
+          <span className="ml-auto text-[10px] tabular-nums text-fg-subtle">
             {teamPct}%
           </span>
         ) : null;
@@ -166,19 +166,19 @@ function ConsensusBox({
   };
 
   const border = decided
-    ? "border-white/15"
+    ? "border-border"
     : c.team
     ? "border-amber-400/40"
     : center
     ? "border-amber-400/30"
-    : "border-white/10";
+    : "border-border";
 
   return (
     <div
-      className={`w-[132px] overflow-hidden rounded-lg border bg-white/[0.03] sm:w-[144px] ${border}`}
+      className={`w-[132px] overflow-hidden rounded-lg border bg-surface sm:w-[144px] ${border}`}
     >
       {row(a)}
-      <div className="h-px bg-white/10" />
+      <div className="h-px bg-border" />
       {row(b)}
     </div>
   );
