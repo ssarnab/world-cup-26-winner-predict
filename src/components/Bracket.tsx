@@ -38,9 +38,9 @@ export function ChampionHero({
   const grade = gradeOf(4, 0, picks, results);
   const ring =
     grade === "correct"
-      ? "border-emerald-400/50"
+      ? "border-correct-line"
       : grade === "wrong"
-      ? "border-red-400/40"
+      ? "border-wrong-line"
       : "border-emerald-400/20";
   return (
     <div
@@ -48,7 +48,7 @@ export function ChampionHero({
     >
       <span className="text-4xl">🏆</span>
       <div className="text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-300/80">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-correct">
           {isLocked(4, 0, results) ? "Champion" : "Predicted Champion"}
         </p>
         {champ ? (
@@ -156,15 +156,15 @@ function MatchBox({
     let badge: React.ReactNode = null;
 
     if (isUserPick && grade === "correct") {
-      cls = "bg-emerald-500/25 text-fg";
+      cls = "bg-correct-soft text-fg";
       badge = <span className="ml-auto font-bold text-emerald-300">✓</span>;
     } else if (isUserPick && grade === "wrong") {
-      cls = "bg-red-500/25 text-fg line-through decoration-red-400/60";
+      cls = "bg-wrong-soft text-fg line-through decoration-wrong";
       badge = <span className="ml-auto font-bold text-red-400">✗</span>;
     } else if (isUserPick) {
       // your prediction, no result yet — distinct blue
-      cls = "bg-blue-500/25 text-fg";
-      badge = <span className="ml-auto text-[9px] font-semibold text-blue-300">PICK</span>;
+      cls = "bg-pick-soft text-fg";
+      badge = <span className="ml-auto text-[9px] font-semibold text-pick">PICK</span>;
     } else if (isRealWinner) {
       // real winner you didn't pick (already decided, outside your prediction)
       cls = "text-fg";
@@ -192,17 +192,17 @@ function MatchBox({
 
   const border =
     grade === "correct"
-      ? "border-emerald-400/50"
+      ? "border-correct-line"
       : grade === "wrong"
-      ? "border-red-400/50"
+      ? "border-wrong-line"
       : started
-      ? "border-amber-400/30"
+      ? "border-fav-line"
       : validPick && !locked
-      ? "border-blue-400/40"
+      ? "border-pick-line"
       : locked
       ? "border-border"
       : center
-      ? "border-emerald-400/40"
+      ? "border-correct-line"
       : "border-border";
 
   return (

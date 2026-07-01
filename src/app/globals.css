@@ -18,6 +18,20 @@
   --glow-a: rgba(34, 197, 94, 0.12);
   --glow-b: rgba(59, 130, 246, 0.1);
   --glow-c: rgba(234, 179, 8, 0.08);
+
+  /* accents (dark) */
+  --pick-bg: rgba(59, 130, 246, 0.28);
+  --pick-fg: #93c5fd;
+  --pick-line: rgba(96, 165, 250, 0.55);
+  --correct-bg: rgba(16, 185, 129, 0.28);
+  --correct-fg: #6ee7b7;
+  --correct-line: rgba(52, 211, 153, 0.55);
+  --wrong-bg: rgba(239, 68, 68, 0.28);
+  --wrong-fg: #f87171;
+  --wrong-line: rgba(248, 113, 113, 0.55);
+  --fav-bg: rgba(245, 158, 11, 0.28);
+  --fav-fg: #fcd34d;
+  --fav-line: rgba(251, 191, 36, 0.5);
 }
 
 html.light {
@@ -37,6 +51,20 @@ html.light {
   --glow-a: rgba(34, 197, 94, 0.1);
   --glow-b: rgba(59, 130, 246, 0.08);
   --glow-c: rgba(234, 179, 8, 0.07);
+
+  /* accents (light) — stronger tint + darker text for contrast */
+  --pick-bg: rgba(37, 99, 235, 0.16);
+  --pick-fg: #1d4ed8;
+  --pick-line: rgba(37, 99, 235, 0.55);
+  --correct-bg: rgba(5, 150, 105, 0.2);
+  --correct-fg: #047857;
+  --correct-line: rgba(5, 150, 105, 0.55);
+  --wrong-bg: rgba(220, 38, 38, 0.16);
+  --wrong-fg: #b91c1c;
+  --wrong-line: rgba(220, 38, 38, 0.5);
+  --fav-bg: rgba(217, 119, 6, 0.22);
+  --fav-fg: #b45309;
+  --fav-line: rgba(180, 83, 9, 0.5);
 }
 
 @theme inline {
@@ -51,6 +79,20 @@ html.light {
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
+
+  --color-pick: var(--pick-fg);
+  --color-pick-soft: var(--pick-bg);
+  --color-pick-line: var(--pick-line);
+  --color-correct: var(--correct-fg);
+  --color-correct-soft: var(--correct-bg);
+  --color-correct-line: var(--correct-line);
+  --color-wrong: var(--wrong-fg);
+  --color-wrong-soft: var(--wrong-bg);
+  --color-wrong-line: var(--wrong-line);
+  --color-fav: var(--fav-fg);
+  --color-fav-soft: var(--fav-bg);
+  --color-fav-line: var(--fav-line);
+
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 }
 

@@ -33,10 +33,10 @@ export function ConsensusChampionHero({
 }) {
   const c = consensusChampion(tallies, results);
   return (
-    <div className="mb-5 flex items-center justify-center gap-4 rounded-2xl border border-amber-400/30 bg-gradient-to-b from-amber-400/10 to-transparent py-5">
+    <div className="mb-5 flex items-center justify-center gap-4 rounded-2xl border border-fav-line bg-gradient-to-b from-amber-400/10 to-transparent py-5">
       <span className="text-4xl">🔥</span>
       <div className="text-center">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-300/80">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-fav">
           {c.decided ? "Champion" : "Crowd's Pick to Win It All"}
         </p>
         {c.team ? (
@@ -44,7 +44,7 @@ export function ConsensusChampionHero({
             <Flag code={c.team.code} size="lg" />
             {c.team.name}
             {!c.decided && c.total > 0 && (
-              <span className="text-lg font-bold text-amber-300">{c.pct}%</span>
+              <span className="text-lg font-bold text-fav">{c.pct}%</span>
             )}
           </p>
         ) : (
@@ -130,9 +130,9 @@ function ConsensusBox({
     } else if (decided) {
       cls = "text-fg-subtle";
     } else if (isFav) {
-      cls = "bg-amber-500/25 text-fg";
+      cls = "bg-fav-soft text-fg";
       badge = (
-        <span className="ml-auto text-[11px] font-black tabular-nums text-amber-300">
+        <span className="ml-auto text-[11px] font-black tabular-nums text-fav">
           {teamPct}%
         </span>
       );
@@ -168,9 +168,9 @@ function ConsensusBox({
   const border = decided
     ? "border-border"
     : c.team
-    ? "border-amber-400/40"
+    ? "border-fav-line"
     : center
-    ? "border-amber-400/30"
+    ? "border-fav-line"
     : "border-border";
 
   return (
