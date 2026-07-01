@@ -99,6 +99,30 @@ export async function loadAllUsers(
   return { rows: (data as UserScore[]) ?? [], total: count ?? 0 };
 }
 
+// ---- Champion race: how many predicted each team to win the final ----
+export type ChampCount = { team: string; count: number; pct: number };
+export async function loadChampionPicks(): Promise<ChampCount[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data } = await supabase
+    .from("predictions")
+    .select("selected_team")
+    .eq("round", 4)
+    .eq("match_index", 0);
+  if (!data || data.length === 0) return [];
+  const counts: Record<string, number> = {};
+  data.forEach((r) => {
+    counts[r.selected_team] = (counts[r.selected_team] ?? 0) + 1;
+  });
+  const total = data.length;
+  return Object.entries(counts)
+    .map(([team, count]) => ({
+      team,
+      count,
+      pct: Math.round((count / total) * 100),
+    }))
+    .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team));
+}
+
 // ---- One user's score row ----
 export async function loadUserScore(userId: string): Promise<UserScore | null> {
   if (!isSupabaseConfigured) return null;

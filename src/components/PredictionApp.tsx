@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/useAuth";
 import { loadResults, loadPicks, savePick, Identity } from "@/lib/db";
 import { Bracket, ChampionHero } from "./Bracket";
 import Leaderboard from "./Leaderboard";
+import ChampionRace from "./ChampionRace";
 
 const PICKS_KEY = "wc26_bracket_picks";
 
@@ -270,11 +271,14 @@ export default function PredictionApp() {
           </p>
         </>
       ) : (
-        <Leaderboard
-          results={results}
-          myUid={user.uid}
-          refreshSignal={refreshSignal}
-        />
+        <div className="mx-auto max-w-2xl">
+          <ChampionRace refreshSignal={refreshSignal} />
+          <Leaderboard
+            results={results}
+            myUid={user.uid}
+            refreshSignal={refreshSignal}
+          />
+        </div>
       )}
 
       <footer className="mt-12 text-center text-xs text-white/30">
