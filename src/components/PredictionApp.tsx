@@ -289,14 +289,6 @@ export default function PredictionApp() {
 
       {tab === "favorite" && (
         <>
-          <div className="mb-4 rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-4 text-center">
-            <h2 className="text-lg font-black">🔥 The People&apos;s Bracket</h2>
-            <p className="mx-auto mt-1 max-w-lg text-xs text-white/50">
-              Built from everyone&apos;s predictions — each match advances the team
-              the crowd backs most, with the % that agree. Matches that are
-              already decided show the real result.
-            </p>
-          </div>
           <ConsensusChampionHero tallies={tallies} results={results} />
           <ConsensusBracket tallies={tallies} results={results} />
           <p className="mt-3 text-center text-xs text-white/35">
