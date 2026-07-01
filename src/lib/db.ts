@@ -146,6 +146,40 @@ export async function loadChampionPicks(): Promise<ChampCount[]> {
     .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team));
 }
 
+// ---- Live chat ----
+export type ChatMessage = {
+  id: number;
+  user_id: string;
+  user_name: string;
+  user_photo: string | null;
+  body: string;
+  created_at: string;
+};
+
+export async function loadMessages(limit = 100): Promise<ChatMessage[]> {
+  if (!isSupabaseConfigured) return [];
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (!data) return [];
+  return (data as ChatMessage[]).reverse(); // oldest → newest for display
+}
+
+export async function sendMessage(who: Identity, body: string) {
+  if (!isSupabaseConfigured) return { error: "not configured" };
+  const clean = body.trim().slice(0, 500);
+  if (!clean) return { error: "empty" };
+  const { error } = await supabase.from("messages").insert({
+    user_id: who.uid,
+    user_name: who.name,
+    user_photo: who.photo,
+    body: clean,
+  });
+  return { error: error?.message };
+}
+
 // ---- One user's score row ----
 export async function loadUserScore(userId: string): Promise<UserScore | null> {
   if (!isSupabaseConfigured) return null;

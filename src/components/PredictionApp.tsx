@@ -27,6 +27,7 @@ import Leaderboard from "./Leaderboard";
 import ChampionRace from "./ChampionRace";
 import { ConsensusBracket, ConsensusChampionHero } from "./ConsensusBracket";
 import ThemeToggle from "./ThemeToggle";
+import Chat from "./Chat";
 
 const PICKS_KEY = "wc26_bracket_picks";
 
@@ -37,7 +38,9 @@ export default function PredictionApp() {
   const [results, setResults] = useState<Results>({});
   const [picks, setPicks] = useState<Picks>({});
   const [tallies, setTallies] = useState<Tallies>({});
-  const [tab, setTab] = useState<"bracket" | "favorite" | "board">("bracket");
+  const [tab, setTab] = useState<
+    "bracket" | "favorite" | "board" | "chat"
+  >("bracket");
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [warning, setWarning] = useState<string | null>(null);
@@ -260,6 +263,9 @@ export default function PredictionApp() {
         <TabButton active={tab === "board"} onClick={() => setTab("board")}>
           🏆 Leaderboard
         </TabButton>
+        <TabButton active={tab === "chat"} onClick={() => setTab("chat")}>
+          💬 Chat
+        </TabButton>
       </div>
 
       {tab === "bracket" && (
@@ -350,6 +356,8 @@ export default function PredictionApp() {
           />
         </div>
       )}
+
+      {tab === "chat" && identity && <Chat identity={identity} />}
 
       <footer className="mt-12 text-center text-xs text-fg-subtle">
         Fan predictions · not affiliated with FIFA · built for fun
