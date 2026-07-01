@@ -5,6 +5,7 @@ import {
   Picks,
   Results,
   slotKey,
+  isLocked,
   score,
   decidedCount,
   TOTAL_MATCHES,
@@ -79,7 +80,7 @@ export default function PredictionApp() {
 
   const handlePick = useCallback(
     (round: number, match: number, team: string) => {
-      if (!identity) return;
+      if (!identity || isLocked(round, match, results)) return;
       setPicks((prev) => {
         const next = { ...prev, [slotKey(round, match)]: team };
         localStorage.setItem(
@@ -94,7 +95,7 @@ export default function PredictionApp() {
   );
 
   const myScore = useMemo(() => score(picks, results), [picks, results]);
-  const decided = useMemo(() => decidedCount(picks), [picks]);
+  const decided = useMemo(() => decidedCount(picks, results), [picks, results]);
 
   // ---------- Auth gates ----------
   if (!isFirebaseConfigured) {
@@ -211,35 +212,51 @@ export default function PredictionApp() {
       {tab === "bracket" ? (
         <>
           {/* Stats strip */}
-          <div className="mb-5 grid grid-cols-3 gap-3">
+          <div className="mb-2 grid grid-cols-3 gap-3">
             <StatCard
               big={myScore.graded > 0 ? `${myScore.pct}%` : "—"}
-              label="Accuracy"
+              label="Correct"
               accent="emerald"
             />
             <StatCard
-              big={`${myScore.correct}/${myScore.graded}`}
-              label="Correct picks"
+              big={myScore.graded > 0 ? `${100 - myScore.pct}%` : "—"}
+              label="Wrong"
+              accent="red"
             />
-            <StatCard
-              big={`${decided}/${TOTAL_MATCHES}`}
-              label="Bracket filled"
-            />
+            <StatCard big={`${decided}/${TOTAL_MATCHES}`} label="Predicted" />
           </div>
+          <p className="mb-5 text-center text-xs text-white/45">
+            {myScore.graded > 0 ? (
+              <>
+                <span className="text-emerald-300">
+                  ✓ {myScore.correct} correct
+                </span>{" "}
+                ·{" "}
+                <span className="text-red-300">✗ {myScore.wrong} wrong</span> ·{" "}
+                {myScore.graded} of your picks decided so far
+              </>
+            ) : (
+              "Fill your bracket — accuracy shows up as real results come in."
+            )}
+          </p>
 
           {/* Legend */}
           <div className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-white/50">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-emerald-500/40" />
+              <span className="inline-block h-3 w-3 rounded bg-blue-500/50" />
+              Your pick
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded bg-emerald-500/50" />
               Correct ✓
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-red-500/40" />
+              <span className="inline-block h-3 w-3 rounded bg-red-500/50" />
               Wrong ✗
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded bg-emerald-400/15" />
-              Your pick (no result yet)
+              <span className="inline-block h-3 w-3 rounded border border-white/25" />
+              Already decided (WON)
             </span>
           </div>
 
@@ -247,9 +264,9 @@ export default function PredictionApp() {
           <Bracket picks={picks} results={results} onPick={handlePick} />
 
           <p className="mt-3 text-center text-xs text-white/35">
-            Tap a team to advance it all the way to your champion. As real
-            results come in, each pick turns green ✓ or red ✗ and your accuracy
-            updates. Picks save automatically.
+            Tap a team to advance it to your champion. Matches that are already
+            decided are locked (shown as “WON”, outside your prediction). Your
+            picks turn green ✓ or red ✗ as results come in. Saved automatically.
           </p>
         </>
       ) : (
@@ -299,13 +316,17 @@ function StatCard({
 }: {
   big: string;
   label: string;
-  accent?: "emerald";
+  accent?: "emerald" | "red";
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-center">
       <div
         className={`text-2xl font-black tabular-nums sm:text-3xl ${
-          accent === "emerald" ? "text-emerald-400" : "text-white"
+          accent === "emerald"
+            ? "text-emerald-400"
+            : accent === "red"
+            ? "text-red-400"
+            : "text-white"
         }`}
       >
         {big}

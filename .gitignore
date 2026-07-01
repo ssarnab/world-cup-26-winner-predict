@@ -29,3 +29,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# local data backups (contain user names/ids — keep out of git)
+/backups

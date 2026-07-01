@@ -5,11 +5,11 @@ import {
   Results,
   Team,
   champion,
+  effectiveWinner,
   gradeOf,
-  hasResult,
+  isLocked,
   slotKey,
   teamsAt,
-  winnerAt,
 } from "@/lib/bracket";
 import { Flag } from "./Flag";
 
@@ -33,7 +33,7 @@ export function ChampionHero({
   picks: Picks;
   results: Results;
 }) {
-  const champ = champion(picks);
+  const champ = champion(picks, results);
   const grade = gradeOf(4, 0, picks, results);
   const ring =
     grade === "correct"
@@ -48,7 +48,7 @@ export function ChampionHero({
       <span className="text-4xl">🏆</span>
       <div className="text-center">
         <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-300/80">
-          Predicted Champion
+          {isLocked(4, 0, results) ? "Champion" : "Predicted Champion"}
         </p>
         {champ ? (
           <p className="flex items-center justify-center gap-2 text-2xl font-black sm:text-3xl">
@@ -120,13 +120,17 @@ function MatchBox({
   onPick?: (round: number, match: number, team: string) => void;
   center?: boolean;
 }) {
-  const [a, b] = teamsAt(round, match, picks);
-  const userPick = winnerAt(round, match, picks);
+  const key = slotKey(round, match);
+  const [a, b] = teamsAt(round, match, picks, results);
+  const effWinner = effectiveWinner(round, match, picks, results);
+  const locked = isLocked(round, match, results);
   const grade = gradeOf(round, match, picks, results); // correct | wrong | null
-  const decided = hasResult(round, match, results);
-  const actualWinner = results[slotKey(round, match)];
+  const actualWinner = results[key];
+
+  const rawPick = picks[key];
+  const validPick = Boolean(rawPick && (a?.name === rawPick || b?.name === rawPick));
   const bothReady = Boolean(a && b);
-  const canClick = Boolean(onPick) && bothReady;
+  const canClick = Boolean(onPick) && bothReady && !locked;
 
   const row = (team: Team | null) => {
     if (!team) {
@@ -136,26 +140,29 @@ function MatchBox({
         </div>
       );
     }
-    const isPick = userPick?.name === team.name;
-    const isActualWinner = decided && actualWinner === team.name;
+    const isUserPick = rawPick === team.name;
+    const isRealWinner = locked && actualWinner === team.name;
+    const isEff = effWinner?.name === team.name;
 
-    // colour rules
     let cls = "text-white/85";
     let badge: React.ReactNode = null;
-    if (isPick && grade === "correct") {
+
+    if (isUserPick && grade === "correct") {
       cls = "bg-emerald-500/25 text-white";
       badge = <span className="ml-auto font-bold text-emerald-300">✓</span>;
-    } else if (isPick && grade === "wrong") {
-      cls = "bg-red-500/25 text-white";
+    } else if (isUserPick && grade === "wrong") {
+      cls = "bg-red-500/25 text-white line-through decoration-red-400/60";
       badge = <span className="ml-auto font-bold text-red-400">✗</span>;
-    } else if (isPick) {
-      cls = "bg-emerald-400/15 text-white"; // selected, no result yet
-    } else if (isActualWinner) {
-      // the real winner that the user did NOT pick — show the right answer
-      cls = "text-emerald-300/80";
-      badge = <span className="ml-auto text-[10px] text-emerald-300/80">won</span>;
-    } else if (userPick) {
-      cls = "text-white/35"; // the eliminated side of a decided pick
+    } else if (isUserPick) {
+      // your prediction, no result yet — distinct blue
+      cls = "bg-blue-500/25 text-white";
+      badge = <span className="ml-auto text-[9px] font-semibold text-blue-300">PICK</span>;
+    } else if (isRealWinner) {
+      // real winner you didn't pick (already decided, outside your prediction)
+      cls = "text-white/80";
+      badge = <span className="ml-auto text-[9px] font-semibold text-white/40">WON</span>;
+    } else if (effWinner && !isEff) {
+      cls = "text-white/35";
     }
 
     return (
@@ -180,6 +187,10 @@ function MatchBox({
       ? "border-emerald-400/50"
       : grade === "wrong"
       ? "border-red-400/50"
+      : validPick && !locked
+      ? "border-blue-400/40"
+      : locked
+      ? "border-white/15"
       : center
       ? "border-emerald-400/40"
       : "border-white/10";

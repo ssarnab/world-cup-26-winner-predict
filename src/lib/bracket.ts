@@ -75,28 +75,44 @@ function pickTeam(a: Team | null, b: Team | null, name?: string): Team | null {
   return null;
 }
 
-/** The two teams contesting a match, derived from the user's earlier picks. */
+/** The two teams contesting a match, derived from earlier advancers. */
 export function teamsAt(
   round: number,
   m: number,
-  picks: Picks
+  picks: Picks,
+  results: Results
 ): [Team | null, Team | null] {
   if (round === 0) {
     return [SEEDS[m * 2] ?? null, SEEDS[m * 2 + 1] ?? null];
   }
-  return [winnerAt(round - 1, m * 2, picks), winnerAt(round - 1, m * 2 + 1, picks)];
+  return [
+    effectiveWinner(round - 1, m * 2, picks, results),
+    effectiveWinner(round - 1, m * 2 + 1, picks, results),
+  ];
 }
 
-/** The team the user advanced from this match (their own bracket).
- *  Validated against the current matchup so stale picks auto-clear when an
- *  upstream pick changes. */
-export function winnerAt(round: number, m: number, picks: Picks): Team | null {
-  const [a, b] = teamsAt(round, m, picks);
-  return pickTeam(a, b, picks[slotKey(round, m)]);
+/** The team that advances from this match:
+ *  - the user's own pick if they made one (their bracket / their prediction), else
+ *  - the real winner if the match is already decided (outside their prediction).
+ *  Validated against the current matchup so stale picks auto-clear. */
+export function effectiveWinner(
+  round: number,
+  m: number,
+  picks: Picks,
+  results: Results
+): Team | null {
+  const [a, b] = teamsAt(round, m, picks, results);
+  const key = slotKey(round, m);
+  return pickTeam(a, b, picks[key]) ?? pickTeam(a, b, results[key]);
 }
 
-export function champion(picks: Picks): Team | null {
-  return winnerAt(FINAL_ROUND, 0, picks);
+/** A match is locked (not predictable) once it has an official result. */
+export function isLocked(round: number, m: number, results: Results): boolean {
+  return Boolean(results[slotKey(round, m)]);
+}
+
+export function champion(picks: Picks, results: Results): Team | null {
+  return effectiveWinner(FINAL_ROUND, 0, picks, results);
 }
 
 // ---------- Grading (compare the user's pick to the real result) ----------
@@ -136,12 +152,15 @@ export function score(picks: Picks, results: Results) {
   return { correct, graded, wrong: graded - correct, pct };
 }
 
-/** How many matches the user has filled in (their pick produced a winner). */
-export function decidedCount(picks: Picks): number {
+/** How many valid predictions the user has made (their pick is one of the two
+ *  teams currently in that match). Decided matches they never picked don't count. */
+export function decidedCount(picks: Picks, results: Results): number {
   let n = 0;
   ROUNDS.forEach((r, round) => {
     for (let m = 0; m < r.matches; m++) {
-      if (winnerAt(round, m, picks)) n++;
+      const [a, b] = teamsAt(round, m, picks, results);
+      const p = picks[slotKey(round, m)];
+      if (p && (a?.name === p || b?.name === p)) n++;
     }
   });
   return n;
